@@ -1,0 +1,5 @@
+Package: MAMOTerrace
+Type: Package
+Title: Mapping and modelling terraces
+Version: 1.0.0.0
+RoxygenNote: 7.2.3
