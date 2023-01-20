@@ -2,7 +2,5 @@ Package: MAMOTerrace
 Type: Package
 Title: Mapping and modelling terraces
 Version: 1.0.0.0
-Imports:
-dplyr (>= 1.6-47),
-s2 (>= 1.1.1)
+Imports: terra (>= 1.6-47), s2 (>= 1.1.1)
 RoxygenNote: 7.2.3
