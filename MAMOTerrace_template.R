@@ -35,6 +35,7 @@ profile_buffer = terra::buffer(x = profile_line, width = searchRadius, capstyle 
 dem = terra::rast("notInPackage/testdata/lidar.tif")
 
 dem_slope = terra::terrain(x = dem, v = "slope", unit = "degrees", neighbors=4) # neighbours has only two options: 8 for rough surfaces, 4 for smoother surfaces
+#plet(dem_slope, col = rainbow(256, rev = T) )
 
 rast_2 = terra::rast("notInPackage/testdata/lidarFilled.tif")
 
@@ -71,6 +72,73 @@ points(m, profile_metering, cex=2, col="white")
 
 
 
+# clip rasters to region of interest (profile_buffer)
+dem_crop = terra::crop(dem, profile_buffer, extend = T, mask = T)
+dem_slope_crop = terra::crop(dem_slope, profile_buffer, extend = T, mask = T)
+rast_2_crop = terra::crop(rast_2, profile_buffer, extend = T, mask = T)
+
+
+# create empty "align raster", which to align other rasters to
+alignRaster = mm_alignRas(x=dem_crop,rN=50)
+
+
+# resample cropped rasters (align) to matched resolution
+dem_res = terra::resample(dem_crop, alignRaster, method="cubic", threads=TRUE)
+dem_slope_res = terra::resample(dem_slope_crop, alignRaster, method="cubic", threads=TRUE)
+rast_2_res = terra::resample(rast_2_crop, alignRaster, method="cubic", threads=TRUE)
+
+
+
+
+
+
+rasterCollection = terra::sprc(x = list(dem_res, dem_slope_res, rast_2_res))
+
+
+
+
+
+
+#install.packages("rgl")
+require("rgl")
+
+#fem = terra::as.points(rasterCollection)
+fem = terra::as.points(dem_res)
+
+d = cbind( as.data.frame( terra::geom(fem)[,c(3,4)] ), z = fem$lidar)
+
+plot3d(d, size = 0.01)
+
+
+
+
+
+
+
+
+
+
+
+
+?terra::sprc()
+
+
+# -> stack rasters
+# -> convert to fem
+# -> import and prepare maps
+# -> spatial join
+# -> import and prepare lines
+# -> sample lines and extract lidar values
+# -> import points and extract lidar values
+# -> project everything
+
+
+
+
+
+
+
+
 
 
 
@@ -80,58 +148,38 @@ points(m, profile_metering, cex=2, col="white")
 sf::st_line_sample(sf::st_as_sf(profile_line), density = 10^-3, type = "regular", sample = c(0,0.5,1)) # sample overrides density and n
 
 
+################################################################################
+
+
+
+x1 <- rbind(c(-175,-20), c(-140,55), c(10, 0), c(-140,-60))
+x2 <- rbind(c(-125,0), c(0,60), c(40,5), c(15,-45))
+x3 <- rbind(c(-10,0), c(140,60), c(160,0), c(140,-55))
+x4 <- rbind(c(80,0), c(105,13), c(120,2), c(105,-13))
+z <- rbind(cbind(object=1, part=1, x1), cbind(object=2, part=1, x2), 
+           cbind(object=3, part=1, x3), cbind(object=3, part=2,  x4))
+colnames(z)[3:4] <- c('x', 'y')
+z <- cbind(z, hole=0)
+z[(z[, "object"]==3 & z[,"part"]==2), "hole"] <- 1
+
+p <- vect(z, "polygons")
+geom(p)
+
+f <- system.file("ex/lux.shp", package="terra")
+v <- vect(f)
+g <- geom(v)
+head(g)
+
+w <- geom(v, wkt=TRUE)
+substr(w, 1, 60)
 
 
 
 
+install.packages("tidyterra")
+require(tidyterra)
 
-
-# FUNCTION :: points along a line, spacing in m, starting with line distance = 0
-# dependency: sf, terra
-mm_metering = function(profile_line, spacing = 1000, label = T, labelUnit = "km") {
-  
-  # convert to simple feature for package sf
-  sf = sf::st_as_sf(profile_line)
-  
-  # for correct labels, crs units must be m when doing sf::st_line_sample()
-  # check and transform if necessary
-  original_proj = terra::crs(profile_line, proj=T)
-  unitOK = grepl("+units=m", original_proj)
-  if(unitOK == FALSE) { sf = sf::st_transform(sf, 3857) }
-  
-  # create metering
-  l = as.numeric( sf::st_length(sf) ) # get profile length
-  metr = sf::st_line_sample( sf, sample = seq(0, 1, by = 1/l*spacing) )
-  metr = sf::st_cast(metr,"POINT") # convert to POINT instead of MULTIPOINT
-  
-  # transform metering result back to original crs
-  if(unitOK == FALSE) {
-    original_EPSG = sf::st_crs(profile_line)$epsg # get original epsg
-    metr = sf::st_transform(metr, original_EPSG)
-  }
-  
-  # convert to spatVector
-  profile_metering = terra::vect(metr)
-  
-  #### add field for labels
-  if (label) {
-    n = seq(0, 1, by = 1/l*spacing)
-    label = n * l / if (labelUnit == "km") {1000} else if (labelUnit == "m") {1}
-    terra::values(profile_metering) = as.data.frame(label)
-  }
-  
-  return(profile_metering)
-}
-
-
-
-
-
-
-
-
-
-
+require(dplyr)
 
 
 ?terra::window
@@ -156,6 +204,7 @@ mm_metering = function(profile_line, spacing = 1000, label = T, labelUnit = "km"
 ?terra::persp
 ?terra::math
 ?terra::makeNodes
+?terra::geom
 ?terra::extractAlong
 ?terra::extract
 ?terra::emptyGeoms

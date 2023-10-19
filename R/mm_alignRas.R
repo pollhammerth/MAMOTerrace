@@ -9,6 +9,7 @@
 #' @examples 
 #' lidar = data("lidar.tif");
 #' alignRas = mm_alignRas(x=lidar,rN=100);
+#' x = terra::resample(lidar, alignRas, method="cubic", threads=TRUE);
 #' @export
 mm_alignRas = function(x,rN){
   ex = terra::ext(x) # get extent of input raster
@@ -29,4 +30,3 @@ mm_alignRas = function(x,rN){
   # output
   return(s)
 }
-# x <- terra::resample(lidar, s, method="cubic", threads=TRUE)
