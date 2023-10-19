@@ -11,6 +11,9 @@
 #' @examples 
 #' profile = data("profile.gpkg");
 #' metering = mm_metering(profile_line=profile,spacing=10000,label=T,labelUnit="km");
+#' terra::plot(profile);
+#' terra::points(metering, cex = 3, col = "blue");
+#' terra::text(metering, labels = metering$label, halo = T);
 #' @export
 mm_metering = function(profile_line, spacing = 1000, label = T, labelUnit = "km") {
   
