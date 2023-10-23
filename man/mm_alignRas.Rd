@@ -22,4 +22,5 @@ Output can be used for terra::resample()
 \examples{
 lidar = data("lidar.tif");
 alignRas = mm_alignRas(x=lidar,rN=100);
+x = terra::resample(lidar, alignRas, method="cubic", threads=TRUE);
 }

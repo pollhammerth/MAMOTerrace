@@ -1,5 +1,7 @@
 # Template file, with a typical workflow 
 
+rm(list=ls())
+
 getwd()
 setwd("H:/R_Package_Devel/MAMOTerrace")
 
@@ -15,7 +17,7 @@ install_github("pollhammerth/MAMOTerrace")
 library(MAMOTerrace)
 ?mm_alignRas
 ?mm_metering
-
+?mm_prepRas
 
 
 require("terra")
@@ -23,8 +25,8 @@ require("terra")
 # parameters
 path_profile = "notInPackage/testdata/profile.gpkg"
 searchRadius = 3000
-
-
+analysisReso = 10
+raster = c("notInPackage/testdata/lidar.tif","notInPackage/testdata/lidarFilled.tif")
 
 
 # get profile
@@ -32,30 +34,16 @@ profile_line = terra::vect(path_profile)
 profile_buffer = terra::buffer(x = profile_line, width = searchRadius, capstyle = "flat", joinstyle = "round")
 profile_metering = mm_metering(profile_line = profile_line, spacing = 5000, label = T, labelUnit = "km")
 
-
-# load rasters
-dem = terra::rast("notInPackage/testdata/lidar.tif")
-
-dem_slope = terra::terrain(x = dem, v = "slope", unit = "degrees", neighbors=4) # neighbours has only two options: 8 for rough surfaces, 4 for smoother surfaces
-#plet(dem_slope, col = rainbow(256, rev = T) )
-
-rast_2 = terra::rast("notInPackage/testdata/lidarFilled.tif")
+# get rasters
+ras = mm_prepRas(profile=profile_line, searchRadius, raster, analysisReso, makeSlope = T, makeShade = T)
 
 
-
-#### preparing a map plot (static or interactive)
-# hillshade
-dem_hs = terra::shade(
-  slope = terra::terrain(x = dem, v = "slope", unit = "radians", neighbors=4), 
-  aspect = terra::terrain(x = dem, v = "aspect", unit = "radians"), 
-  angle = 45, direction = 225, normalize = T
-)
 
 
 
 
 # static verification plot
-terra::plot(dem_hs, col = grey.colors(256, rev = T))
+terra::plot(ras$hillshade, col = grey.colors(256, rev = T))
 terra::polys(profile_buffer, lty = 3)
 terra::lines(profile_line, lwd = 1)
 terra::points(profile_metering, cex = 2, col = "white")
@@ -67,31 +55,10 @@ terra::sbar()
 # leaflet plot (with terra)
 # terra::plet requires a devel version of leaflet
 # remotes::install_github("rstudio/leaflet")
-m = plet(dem_hs, col = grey.colors(256, rev = T) )
+m = plet(ras$hillshade, col = grey.colors(256, rev = T) )
 m = lines(m, profile_line, lwd=2, col= "black")
 m = lines(m, profile_buffer, lwd=1, col="black")
 points(m, profile_metering, cex=2, col="white")
-
-
-
-# clip rasters to region of interest (profile_buffer)
-dem_crop = terra::crop(dem, profile_buffer, extend = T, mask = T)
-dem_slope_crop = terra::crop(dem_slope, profile_buffer, extend = T, mask = T)
-rast_2_crop = terra::crop(rast_2, profile_buffer, extend = T, mask = T)
-
-
-# create empty "align raster", which to align other rasters to
-alignRaster = mm_alignRas(x=dem_crop,rN=50)
-
-
-# resample cropped rasters (align) to matched resolution
-dem_res = terra::resample(dem_crop, alignRaster, method="cubic", threads=TRUE)
-dem_slope_res = terra::resample(dem_slope_crop, alignRaster, method="cubic", threads=TRUE)
-rast_2_res = terra::resample(rast_2_crop, alignRaster, method="cubic", threads=TRUE)
-
-
-
-
 
 
 
@@ -107,16 +74,17 @@ map_crop = terra::crop(map, profile_buffer)
 
 
 # -> rasterize map matching the alignRaster
-map_raster = terra::rasterize(map_crop, alignRaster, field = "NAME_KURZ") # rasterize full map and keep field attributes
+map_raster = terra::rasterize(map_crop, ras, field = "NAME_KURZ") # rasterize full map and keep field attributes
 # HT = map_crop[map_crop$NAME_KURZ == "02_HT"] %>% terra::rasterize(dem_crop) # rasterize specific polygons only
 
 
 # -> stack rasters
-tem_rast = terra::rast(list(dem_res,map_raster))
+tem_rast = terra::rast(list(ras,map_raster))
 
 
 # -> convert to tem
-tem = terra::as.points(tem_rast)
+tem_vect = terra::as.points(tem_rast)
+
 
 
 
