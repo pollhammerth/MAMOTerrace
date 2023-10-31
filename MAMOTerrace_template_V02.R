@@ -20,6 +20,7 @@ library(MAMOTerrace)
 ?mm_prepRas # terra
 ?mm_prepMap # terra
 ?mm_linRef # terra, sf, s2
+?mm_sampleLines # terra, sf
 
 
 
@@ -30,7 +31,7 @@ require("sf")
 
 # parameters
 path_profile = "notInPackage/testdata/profile.gpkg"
-searchRadius = 3000
+searchRadius = 7000
 analysisReso = 50
 raster = c("notInPackage/testdata/lidar.tif","notInPackage/testdata/lidarFilled.tif")
 
@@ -45,30 +46,7 @@ ras = mm_prepRas(profile=profile_line, searchRadius, raster, analysisReso, makeS
 
 
 
-
-
-
-# static verification plot
-terra::plot(ras$hillshade, col = grey.colors(256, rev = T))
-terra::polys(profile_buffer, lty = 3)
-terra::lines(profile_line, lwd = 1)
-terra::points(profile_metering, cex = 2, col = "white")
-terra::text(profile_metering, labels = profile_metering$label, halo = T, cex = 0.5)
-terra::north()
-terra::sbar()
-
-
-# leaflet plot (with terra)
-# terra::plet requires a devel version of leaflet
-# remotes::install_github("rstudio/leaflet")
-m = plet(ras$hillshade, col = grey.colors(256, rev = T) )
-m = lines(m, profile_line, lwd=2, col= "black")
-m = lines(m, profile_buffer, lwd=1, col="black")
-points(m, profile_metering, cex=2, col="white")
-
-
-
-# project raster data
+# project rasters
 rap = terra::as.points(ras)
 rasp = mm_linRef(p = rap, l = profile_line, addz = T, asVector = F)
 
@@ -78,49 +56,29 @@ map = mm_prepMap(map="notInPackage/testdata/terraceMap.gpkg", field = "NAME_KURZ
 
 
 
+# get lines, sample them and extract lidar values
+riv = terra::vect("notInPackage/testdata/rivers.gpkg")
+rivLidar = mm_sampleLines(l = riv, cropper = profile_buffer,density = 0.01, raster = ras$lidar, fieldName = "lidar")
+
+ice = terra::vect("notInPackage/testdata/iceExtent.gpkg")
+iceLidar = mm_sampleLines(l = ice, cropper = profile_buffer,density = 0.01, raster = ras$lidar, fieldName = "lidar")
 
 
 
 
+# import points and extract lidar values
+nam = terra::vect("notInPackage/testdata/localNames.gpkg") # nam = terra::disagg(nam) # convert to singlepart if it is multipart
+nam[["lidar"]] <- terra::extract(ras$lidar,nam,method = "bilinear")[,2]
+age = terra::vect("notInPackage/testdata/datedOutcrops.gpkg")
+age[["lidar"]] <- terra::extract(ras$lidar,age,method = "bilinear")[,2]
 
 
 
-
-
-
-# -> convert raster data to spatVector
-ras_vect = terra::as.points(ras)
-# -> project rasters and add distance along profile as raster layer
-require("s2")
-require("sf")
-x_profile = s2::s2_project(st_as_sf(profile_line), st_as_sf(ras_vect))
-#z_profile = s2::s2_distance(st_as_sf(profile_line), st_as_sf(ras_vect)) # optional. Takes a little processing time. Dont if not needed.
-z_profile = as.vector( terra::distance(profile_line,ras_vect) ) # alternatively use terra package, which is faster
-#ras_vect_proj = cbind(ras_vect, as.data.frame(x_profile), as.data.frame(z_profile))
-ras_vect_proj = cbind(ras_vect, as.data.frame(x_profile), as.data.frame(z_profile))
-ras_rast_proj = terra::rasterize(ras_vect_proj,ras, field = names(ras_vect_proj))
-
-
-
-
-# -> import and clip maps to roi
-map = terra::vect("notInPackage/testdata/terraceMap.gpkg")
-map_crop = terra::crop(map, profile_buffer)
-
-# -> rasterize map matching the alignRaster and convert to spatVector::Points
-map_raster = terra::rasterize(map_crop, ras, field = "NAME_KURZ") # rasterize full map and keep field attributes
-# HT = map_crop[map_crop$NAME_KURZ == "02_HT"] %>% terra::rasterize(dem_crop) # rasterize specific polygons only
-map_raster_points = terra::as.points(map_raster)
-
-# -> stack rasters
-#tem_rast = terra::rast(list(ras,map_raster))
-
-
-
-
-# -> import and prepare lines
-# -> sample lines and extract lidar values
-# -> import points and extract lidar values
+# project points
+rivp = mm_linRef(p = rivLidar, l = profile_line, addz = T, asVector = T)
+icep = mm_linRef(p = iceLidar, l = profile_line, addz = T, asVector = T)
+namp = mm_linRef(p = nam, l = profile_line, addz = T, asVector = T)
+agep = mm_linRef(p = age, l = profile_line, addz = T, asVector = T)
 
 
 
@@ -134,28 +92,59 @@ map_raster_points = terra::as.points(map_raster)
 p = terra::rast(list(rasp,map)) # add map to raster data
 p = terra::as.points(p) # convert to spatVector
 p = p[p$NAME_KURZ == "02_HT"] # filter pixels by map. e.g. HT ...
+ps = p[p$slope < 2] # filter by slope
 
-p = terra::as.points(rasp)
+# ... and plot or continue with PMT pt.2 as usual:
+plot(rasp$x, rasp$lidar, pch=NA, xlab = "profile distance", ylab = "elevation")
+points(p$x, p$lidar, pch=46, col = "steelblue", cex = 3)
+points(ps$x, ps$lidar, pch=46, col = "blue", cex = 3)
+with(rasp, points(x = "x", y = "lidar", pch = 46) )
+points(namp$x, namp$lidar, pch = 21, cex = 2, col = "black", bg = "white")
+points(agep$x, agep$lidar, pch = 21, cex = 2, col = "black", bg = "green")
+points(rivp$x, rivp$lidar, pch = 16, cex = 1, col = "darkblue")
+points(icep$x, icep$lidar, pch = 16, cex = 1, col = "lightblue")
 
-# ... and continue with PMT pt.2 as usual. e.g.:
-terra::plot(p$x,p$lidar,pch=46)
 
 
 
+# static verification plot
+terra::plot(ras$hillshade, col = grey.colors(256, rev = T))
+terra::polys(profile_buffer, lty = 3)
+terra::lines(profile_line, lwd = 1)
+terra::points(profile_metering, cex = 2, col = "white")
+terra::text(profile_metering, labels = profile_metering$label, halo = T, cex = 0.5)
+terra::north()
+terra::sbar()
+terra::points(nam, pch=21, cex=2, col = "black", bg="white")
+terra::text(nam, labels = nam$name, halo = T, cex = 1,pos=3)
+terra::points(age, pch=21, cex=2, col = "black", bg="green")
+terra::text(age, labels = age$age, halo = T, cex = 1.5,pos=3)
 
 
 
-# create 3d plot
+# leaflet plot (with terra)
+# terra::plet requires a devel version of leaflet
+# remotes::install_github("rstudio/leaflet")
+m = plet(ras$hillshade, col = grey.colors(256, rev = T) )
+m = lines(m, profile_line, lwd=2, col= "black")
+m = lines(m, profile_buffer, lwd=1, col="black")
+points(m, profile_metering, cex=2, col="white")
+
+
+
+# create a 3d plot
 #install.packages("rgl")
 require("rgl")
-d = cbind( as.data.frame( terra::geom(p)[,c(3,4)] ), z = p$lidar)
-plot3d(d, size = 0.01)
+d = cbind( as.data.frame( terra::geom(rap)[,c(3,4)] ), z = rap$lidar)
+rgl::plot3d(d, size = 0.01)
+r = cbind( as.data.frame( terra::geom(rivLidar)[,c(3,4)] ), z = rivLidar$lidar)
+rgl::points3d(r,col="blue",size=7)
+i = cbind( as.data.frame( terra::geom(iceLidar)[,c(3,4)] ), z = iceLidar$lidar)
+rgl::points3d(i,col="steelblue",size=7)
+n = cbind( as.data.frame( terra::geom(nam)[,c(3,4)] ), z = nam$lidar)
+rgl::points3d(n,col="darkgreen",size=20)
 
 
-
-
-# sample points along a line
-sf::st_line_sample(sf::st_as_sf(profile_line), density = 10^-3, type = "regular", sample = c(0,0.5,1)) # sample overrides density and n
 
 
 ################################################################################
@@ -164,7 +153,6 @@ sf::st_line_sample(sf::st_as_sf(profile_line), density = 10^-3, type = "regular"
 
 
 
-plot(map_raster$NAME_KURZ,ras$lidar)
 
 
 require(tidyterra)

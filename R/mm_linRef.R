@@ -23,7 +23,7 @@ mm_linRef = function (p,l,addz=F,asVector=T) {
   # add distance along line (x) and, if desired, also distance to line (z) and store as SpatVector
   if (addz) {
     #z = s2::s2_distance(st_as_sf(profile_line), st_as_sf(ras_vect)) # optional. Takes a little processing time. Dont do it, if not needed.
-    z = as.vector( terra::distance(profile_line,ras_vect) ) # alternatively use terra package, which is faster.
+    z = as.vector( terra::distance(l,p) ) # alternatively use terra package, which is faster.
     out_Vector = cbind(p, as.data.frame(x), as.data.frame(z))
   } 
   else {
