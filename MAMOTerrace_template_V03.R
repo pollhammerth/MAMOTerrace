@@ -153,6 +153,46 @@ rgl::points3d(n,col="darkgreen",size=20)
 
 
 
+#### testing ###################################################################
+
+?rgl::select3d()
+
+
+if (interactive() && !in_pkgdown_example()) {
+  x <- d$x
+  y <- d$y
+  z <- d$z
+#  open3d()
+#  points3d(x, y, z)
+  plot3d(x,y,z, size = 0.001)
+  f <- select3d()
+  if (!is.null(f)) {
+    keep <- f(x, y, z)
+    pop3d()
+    points3d(x[keep], y[keep], z[keep], color = 'red')
+    points3d(x[!keep], y[!keep], z[!keep])
+  }
+}
+
+if (interactive() && !in_pkgdown_example()) {
+  x <- d$x
+  y <- d$y
+  z <- d$z
+  #  open3d()
+  #  points3d(x, y, z)
+  plot3d(x,y,z, size = 0.0001)
+}
+f <- select3d()
+if (!is.null(f)) {
+  keep <- f(x, y, z)
+  pop3d()
+  points3d(x[keep], y[keep], z[keep], color = 'red')
+  points3d(x[!keep], y[!keep], z[!keep])
+}
+
+
+
+
 ################################################################################
 
 

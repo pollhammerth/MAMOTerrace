@@ -39,8 +39,8 @@ mm_prepRas = function (profile, searchRadius, raster, analysisReso, makeSlope = 
   # calculate hillshade
   if (makeShade) {
   hillshade = terra::shade(
-    slope = terra::terrain(x = dem$lidar, v = "slope", unit = "radians", neighbors=4), 
-    aspect = terra::terrain(x = dem$lidar, v = "aspect", unit = "radians"), 
+    slope = terra::terrain(x = dem[[1]], v = "slope", unit = "radians", neighbors=4), 
+    aspect = terra::terrain(x = dem[[1]], v = "aspect", unit = "radians"), 
     angle = 45, direction = 225, normalize = T
   )
   dem = terra::rast(list(dem,hillshade))
