@@ -9,8 +9,8 @@ require("sf")
 
 
 
-analysisReso = 20
-searchRadius = 4000
+analysisReso = 50
+searchRadius = 14000
 path_profile = "H:/GIS/PhD/profiles/Iller/parallel_01/profile/profil.gpkg"
 path_raster = NA # c("notInPackage/testdata/lidar.tif","notInPackage/testdata/lidarFilled.tif")
 
@@ -105,6 +105,29 @@ load(paste0(input.path,"/","dsIds.Rdata"));load(paste0(input.path,"/","htIds.Rda
 
 
 
+#### plot alternatives #########################################################
+# leaflet plot (with terra)
+# terra::plet requires a devel version of leaflet
+# remotes::install_github("rstudio/leaflet")
+m = plet(ras$hillshade, col = grey.colors(256, rev = T) )
+m = lines(m, profile_line, lwd=2, col= "black")
+m = lines(m, profile_buffer, lwd=1, col="black")
+points(m, profile_metering, cex=2, col="white")
+
+
+
+
+# create a 3d plot
+#install.packages("rgl")
+require("rgl")
+d = cbind( as.data.frame( terra::geom(terra::as.points(ras[[1]]))[,c(3,4)] ), z = terra::as.points(ras[[1]]))
+rgl::plot3d(d, size = 0.01)
+r = cbind( as.data.frame( terra::geom(rivLidar)[,c(3,4)] ), z = rivLidar$lidar)
+rgl::points3d(r,col="blue",size=7)
+i = cbind( as.data.frame( terra::geom(iceLidar)[,c(3,4)] ), z = iceLidar$lidar)
+rgl::points3d(i,col="steelblue",size=7)
+n = cbind( as.data.frame( terra::geom(nam)[,c(3,4)] ), z = nam$lidar)
+rgl::points3d(n,col="darkgreen",size=20)
 
 
 
