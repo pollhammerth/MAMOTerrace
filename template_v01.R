@@ -1,6 +1,8 @@
 rm(list=ls())
 setwd("H:/TEMP/MAMOT")
 
+library(devtools)
+install_github("pollhammerth/MAMOTerrace")
 require("MAMOTerrace")
 require("terra")
 require("s2")
@@ -9,8 +11,8 @@ require("sf")
 
 
 
-analysisReso = 50
-searchRadius = 14000
+analysisReso = 40
+searchRadius = 5000
 path_profile = "H:/GIS/PhD/profiles/Iller/parallel_01/profile/profil.gpkg"
 path_raster = NA # c("notInPackage/testdata/lidar.tif","notInPackage/testdata/lidarFilled.tif")
 
@@ -80,6 +82,123 @@ pmt.plot( rapp )
 b = pmt.bin(HT_b2, interval = 200, value = "median", mode = "bin", cth = NA, sth = NA)
 m = pmt.model( b, deg = 2)
 pmt.plotModel(m, col = "blue")
+
+
+
+
+########################################################################## START
+################################################################################
+
+require("rgl")
+
+d = data.frame( geom(rapp)[,c(3,4)], rapp[[1]] )
+
+open3d()
+points3d(d, size = 0.01)
+axes3d(box = F, labels = F, tick = F, expand = 2)
+title3d(main = NULL, zlab = "elev", line =1, level = 3)
+
+
+
+plot3d(d, size = 1, col = "steelblue", type = "p")
+play3d(spin3d(axis = c(0,0,1), rpm = 10), duration = 5)
+
+
+open3d()
+bg3d(color = "black")
+points3d(d$x,d$y,d$alps_20m*100, size = 1, col = "white")
+# pch3d(d$x,d$y,d$alps_20m*100, col = "white", pch = 16, cex = 0.003) # too slow
+aspect3d(1,1,1) # adjust axis ratios
+grid3d(side = "z-") # add horizontal grid at the bbox bottom
+observer3d(0,-5000,150000) # adjust viewpoint
+observer3d(auto = T) # reset viewpoint
+# view3d()
+par3d(mouseMode = c("none","trackball","zAxis","selecting","zoom")) # c("none", "left", "right", "middle", "wheel")
+
+
+play3d(spin3d(axis = c(0,0,1), rpm = 10), duration = 5)
+
+
+rgl::clear3d()
+rgl::close3d()
+rgl::.check3d()
+
+
+
+rgl::view3d()
+rgl::tkspin3d()
+rgl::tkspinControl()
+rgl::title3d()
+rgl::spin3d()
+rgl::snapshot3d()
+rgl::shapelist3d()
+rgl::selectpoints3d()
+rgl::selectionFunction3d()
+rgl::select3d()
+rgl::rotate3d()
+rgl::playwidgetOutput()
+rgl::propertyControl()
+rgl::par3d()
+rgl::movie3d()
+rgl::ids3d()
+rgl::identify3d()
+rgl::hover3d()
+rgl::contourLines3d()
+rgl::cur3d()
+
+
+?interactive()
+?in_pkgdown_example()
+
+if (interactive() && !in_pkgdown_example()) {
+  x <- d$x
+  y <- d$y
+  z <- d$alps_20m*100
+  #  open3d()
+  #  points3d(x, y, z)
+  plot3d(x,y,z, size = 0.001)
+  f <- select3d()
+  if (!is.null(f)) {
+    keep <- f(x, y, z)
+    pop3d()
+    points3d(x[keep], y[keep], z[keep], color = 'red')
+    points3d(x[!keep], y[!keep], z[!keep])
+  }
+}
+
+
+  x <- d$x
+  y <- d$y
+  z <- d$alps_20m
+  #  open3d()
+  #  points3d(x, y, z)
+  plot3d(x,y,z, size = 0.01, col = "black")
+  
+  ?select3d()
+  
+  f <- select3d(button = c("middle"), dev = cur3d())
+  f
+  if (!is.null(f)) {
+    keep <- f(x, y, z)
+    clear3d()
+    points3d(x[keep], y[keep], z[keep], color = 'red', size = 0.01)
+    points3d(x[!keep], y[!keep], z[!keep], color = "black", size = 0.01)
+  }
+
+?pop3d
+
+rgl.projection()
+
+
+install.packages("tidyverse")
+
+
+################################################################################
+############################################################################ END
+
+
+
+
 
 
 

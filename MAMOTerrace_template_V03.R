@@ -174,22 +174,6 @@ if (interactive() && !in_pkgdown_example()) {
   }
 }
 
-if (interactive() && !in_pkgdown_example()) {
-  x <- d$x
-  y <- d$y
-  z <- d$z
-  #  open3d()
-  #  points3d(x, y, z)
-  plot3d(x,y,z, size = 0.0001)
-}
-f <- select3d()
-if (!is.null(f)) {
-  keep <- f(x, y, z)
-  pop3d()
-  points3d(x[keep], y[keep], z[keep], color = 'red')
-  points3d(x[!keep], y[!keep], z[!keep])
-}
-
 
 
 
