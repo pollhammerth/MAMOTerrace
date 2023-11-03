@@ -1,5 +1,6 @@
 rm(list=ls())
 setwd("H:/TEMP/MAMOT")
+setwd("H:/R_Package_Devel/MAMOTerrace")
 
 library(devtools)
 install_github("pollhammerth/MAMOTerrace")
@@ -147,8 +148,8 @@ rgl::contourLines3d()
 rgl::cur3d()
 
 
-?interactive()
-?in_pkgdown_example()
+
+
 
 if (interactive() && !in_pkgdown_example()) {
   x <- d$x
@@ -167,30 +168,203 @@ if (interactive() && !in_pkgdown_example()) {
 }
 
 
-  x <- d$x
-  y <- d$y
-  z <- d$alps_20m
-  #  open3d()
-  #  points3d(x, y, z)
-  plot3d(x,y,z, size = 0.01, col = "black")
+
+
+
+
+mm_map = function (x,y,z,r,type = "polygons") {  
+  # create 3d plot
+  plot3d(x,y,z, size = 0.01, col = "white"); clear3d(); points3d(x,y,z, size = 0.01, col = "black")
   
-  ?select3d()
+  repeat{
   
+  # select points in 3d plot
   f <- select3d(button = c("middle"), dev = cur3d())
-  f
+
   if (!is.null(f)) {
     keep <- f(x, y, z)
+    
+    # 3d plot with selected points highlighted
     clear3d()
     points3d(x[keep], y[keep], z[keep], color = 'red', size = 0.01)
     points3d(x[!keep], y[!keep], z[!keep], color = "black", size = 0.01)
+    
+    #### map control plot
+    # get selected points
+    mapped = data.frame(x = x[keep], y = y[keep], z = z[keep])
+    # convert to points - raster - polygons
+    map_points = terra::vect(data.frame(x=mapped$x,y=mapped$y), geom=c("x","y"), crs = crs(r,proj=T) )
+    map_raster = terra::rasterize(map_points, r)
+    map_polygons = terra::as.polygons(map_raster)
+    # create plot
+    terra::plot(r, col = grey.colors(256, rev = T))
+    terra::polys(map_polygons,col="#ff000033", border="#00000033")
   }
+  
+  continue = readline(prompt = "Continue? y/n")
+  if (continue == "n") { break }
+  
+  }  
+  
+  if (exists("map_points")) {  # return polygons, points or raster
+  if (type=="polygons"){return(map_polygons)} else if (type=="points"){return(map_points)} else if (type=="raster"){return(map_raster)}
+  }
+  
+}
 
-?pop3d
-
-rgl.projection()
 
 
-install.packages("tidyverse")
+
+
+mm_map = function (x,y,z,r,type = "polygons") {  
+  # create 3d plot
+  plot3d(x,y,z, size = 0.01, col = "white"); clear3d(); points3d(x,y,z, size = 0.01, col = "black")
+  
+  repeat{
+    
+    # select points in 3d plot
+    f <- select3d(button = c("middle"), dev = cur3d())
+    
+    if (!is.null(f)) {
+      
+      if (exists("keep")) { old_keep = keep } # keep the old keep from the previous tun, if there has already been a run.
+      
+      keep <- f(x, y, z)
+      
+      # edit keep, to remove points from previous selection
+      if (exists("continue") & continue == "r") {
+        onkeep = data.frame(old_keep, keep, final = rep(FALSE, length(old_keep)) )
+        onkeep[onkeep[[1]] != onkeep[[2]] & onkeep[[1]] == TRUE,][[3]] = TRUE
+        keep = onkeep[[3]]
+      }
+      
+      # edit keep, to add points to previous selection
+      if (exists("continue") & continue == "a") {
+      onkeep = data.frame(old_keep, keep, final = rep(TRUE, length(old_keep)) )
+      onkeep[onkeep[[1]] == onkeep[[2]] & onkeep[[2]] == FALSE,][[3]] = FALSE
+      keep = onkeep[[3]]
+      }
+      
+      #### update 3d plot with selected points highlighted
+      clear3d()
+      points3d(x[keep], y[keep], z[keep], color = 'red', size = 0.01)
+      points3d(x[!keep], y[!keep], z[!keep], color = "black", size = 0.01)
+      
+      #### map control plot
+      # get selected points
+      mapped = data.frame(x = x[keep], y = y[keep], z = z[keep])
+      # convert to points - raster - polygons
+      map_points = terra::vect(data.frame(x=mapped$x,y=mapped$y), geom=c("x","y"), crs = crs(r,proj=T) )
+      map_raster = terra::rasterize(map_points, r)
+      map_polygons = terra::as.polygons(map_raster)
+      # create plot
+      terra::plot(r, col = grey.colors(256, rev = T))
+      terra::polys(map_polygons,col="#ff000033", border="#00000033")
+    }
+    
+    continue = readline(prompt = "do you want to: remove points / add points / start new / end selection? r/a/s/e ")
+    if (continue == "e") { break }
+    
+  }  
+  
+  if (exists("map_points")) {  # return polygons, points or raster
+    if (type=="polygons"){return(map_polygons)} else if (type=="points"){return(map_points)} else if (type=="raster"){return(map_raster)}
+  }
+  
+}
+
+
+DEM = terra::as.points(ras[[1]])
+DEM$alps_20m
+
+
+
+d = data.frame( geom(rapp)[,c(3,4)], rapp[[1]] )
+x=d[[1]]
+y=d[[2]]
+z=d[[3]]
+
+k = mm_map(d$x,d$y,d[[3]],ras$hillshade)
+
+t = "r"
+
+if (exists("t") & t == "r") {"ok"}
+
+?select3d
+
+
+dev.new()
+
+
+identical(old_keep, new_keep)
+old_keep = keep
+new_keep = keep
+
+# T  T -> T
+# F  F -> F
+# T  F -> T
+# F  T -> T
+
+
+
+k = NULL
+for (x in old_keep) {
+  if (x) { 
+    if (new_keep[[x]]) { k = c(k,F) } else { k = c(k,T) }
+    } else { k = c(k,F) }
+}
+
+onkeep = data.frame(old_keep, new_keep, final = rep(TRUE, length(old_keep)) )
+onkeep[onkeep[[1]] == onkeep[[2]] & onkeep[[2]] == FALSE,][[3]] = FALSE
+keep = onkeep[[3]]
+
+unique(keep)
+
+unique(new_keep)
+unique(old_keep)
+
+
+for (i in 1:length(onkeep[[1]])) {
+  if (onkeep[[3]][i]) {
+    if (!onkeep[[1]][i]) {
+      onkeep[[3]][i] = FALSE
+    }
+  }
+}
+
+onkeep[onkeep[[1]] == onkeep[[3]],][onkeep[[1]] == FALSE,]
+
+
+t = data.frame(x = c(T,F,T,F), y = c(T,F,F,T), z = c(F,F,T,T))
+t
+
+t2 = t[t[[1]] == t[[3]],]
+t2[t2[[1]] == FALSE,]
+
+t[t[[1]] != t[[2]] & t[[1]] == TRUE,][[3]] = TRUE
+t
+
+onkeep[[3]][400] = TRUE
+onkeep[[3]][400]
+keep = onkeep[[3]]
+
+old_keep
+new_keep
+
+onkeep[[3]]
+unique(onkeep[[3]])
+
+
+unique(keep_)
+
+old_keep != new_keep
+
+
+  
+
+length(k)
+length(old_keep)
+
 
 
 ################################################################################

@@ -2,6 +2,7 @@
 
 export(mm_alignRas)
 export(mm_linRef)
+export(mm_map3d)
 export(mm_metering)
 export(mm_prepMap)
 export(mm_prepRas)
