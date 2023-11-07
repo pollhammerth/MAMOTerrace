@@ -34,18 +34,18 @@ mm_map3d = function (x,y,z,r,type = "polygons") {
       keep <- f(x, y, z) 
       
       # edit "keep", so that the new selection will be subtracted from the previous selection
-      if (exists("continue") & continue == "r") {
+      if (exists("continue")) { if (continue == "r") {
         onkeep = data.frame(old_keep, keep, final = rep(FALSE, length(old_keep)) )
         onkeep[onkeep[[1]] != onkeep[[2]] & onkeep[[1]] == TRUE,][[3]] = TRUE
         keep = onkeep[[3]]
-      }
+      }}
       
       # edit "keep", so that the new selection will be added to the previous selection
-      if (exists("continue") & continue == "a") {
+      if (exists("continue")) {if (continue == "a") {
         onkeep = data.frame(old_keep, keep, final = rep(TRUE, length(old_keep)) )
         onkeep[onkeep[[1]] == onkeep[[2]] & onkeep[[2]] == FALSE,][[3]] = FALSE
         keep = onkeep[[3]]
-      }
+      }}
       
       #### create/update 3d plot with selected points highlighted
       clear3d()
@@ -54,14 +54,14 @@ mm_map3d = function (x,y,z,r,type = "polygons") {
       
       #### create a map of the selection in horizontal view (control plot)
       # save selected points coordinates as data.frame
-      mapped = data.frame(x = x[keep], y = y[keep], z = z[keep])
+      mapped = data.frame(x = x[keep], y = y[keep], z = z[keep]); names(mapped) = c("x","y","z")
       # convert to SpatPoints - SpatRaster - SpatPolygons
       map_points = terra::vect(data.frame(x=mapped$x,y=mapped$y), geom=c("x","y"), crs = crs(r,proj=T) )
       map_raster = terra::rasterize(map_points, r) # align raster to given raster r
       map_polygons = terra::as.polygons(map_raster)
       # create control plot, with r (hillshade) as background and the newly mapped  polygon on top
       terra::plot(r, col = grey.colors(256, rev = T))
-      terra::polys(map_polygons,col="#ff000033", border="#00000033")
+      terra::polys(map_polygons, col="#ff000033", border="#00000033")
       
     }
     

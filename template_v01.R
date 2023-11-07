@@ -1,4 +1,25 @@
 rm(list=ls())
+
+
+#### load old pmt3 functions ###################################################
+#install.packages("sm")
+require(readtext)
+pmtPath = "H:/R_Package_Devel/prePackageVersion"
+# get FLAGG specific styles and filter expressions:
+eval(parse(text = readtext(paste0(pmtPath,"/","FLAGGStyles/FLAGGSpecific.R"),verbosity = 0)[[2]]))
+temp<-readtext(paste0(pmtPath,"/","filterExpressions/*.R"), verbosity = 0);for (i in 1:length(temp[,2])){eval(parse(text=temp[i,2]))};rm(temp)
+# ... and specific functions:
+temp<-readtext(paste0(pmtPath,"/","FLAGGStyles/*.R"), verbosity = 0);for (i in 1:length(temp[,2])){eval(parse(text=temp[i,2]))};rm(temp)
+# Laden des PMT pt.2 Toolsets und aller noetigen R Packages
+temp<-readtext(paste0(pmtPath,"/","Functions.R/pt2/*.R"), verbosity = 0);for (i in 1:length(temp[,2])){eval(parse(text=temp[i,2]))};rm(temp)
+pmt.packages()
+eval(parse(text = readtext(paste0(pmtPath,"/","Functions.R/p3d/xloc_yloc.R"),verbosity = 0)[[2]]))
+# load list of DS terrace ids for filtering purposes
+input.path <- paste0(pmtPath,"/","FLAGGStyles/TerraceIds_exportFromQGIS")
+load(paste0(input.path,"/","dsIds.Rdata"));load(paste0(input.path,"/","htIds.Rdata"));load(paste0(input.path,"/","ntIds.Rdata"))
+################################################################################
+
+
 setwd("H:/TEMP/MAMOT")
 setwd("H:/R_Package_Devel/MAMOTerrace")
 
@@ -52,47 +73,165 @@ terra::north(); terra::sbar()
 st=Sys.time(); rasp = mm_linRef(p = ras, l = profile_line, addz = T, asVector = F); et=Sys.time(); et-st
 
 # load and prepare a map(s)
-map = list(      m1 = mm_prepMap(map="H:/GIS/PhD/maps/flagg/terraces.gpkg", field = "NAME_KURZ", cropper = profile_buffer, aligner = ras, asVector = F) ) # -------------- map; field
-map = append( map, mm_prepMap(map="H:/GIS/PhD/maps/hydro/rivers_OPAL_buffer200.gpkg", field = "name", cropper = profile_buffer, aligner = ras, asVector = F) ); names(map)[length(map)] = "m2" # -------------- map; field; names(map) <-
-
-
-
-
-
-
+maps = list(      m1 = mm_prepMap(map="H:/GIS/PhD/maps/flagg/terraces.gpkg", field = "NAME_KURZ", cropper = profile_buffer, aligner = ras, asVector = F) ) # -------------- map; field
+maps = append( maps, mm_prepMap(map="H:/GIS/PhD/maps/hydro/rivers_OPAL_buffer200.gpkg", field = "name", cropper = profile_buffer, aligner = ras, asVector = F) ); names(maps)[length(maps)] = "m2" # -------------- map; field; names(map) <-
 
 
 # -> prepare data for pt.2
-
-# get full lidar and set plot extent
-y.source = names(rasp)[1]
-rapp = terra::as.points(rasp) # convert to spatVector
-names(rapp)[names(rapp) == y.source] = "y" # rename y column
-rapp = as.data.frame(rapp)
-extent = pmt.extent(data=rapp,x="x",y="y",z="z") # set plot extent
-
-# get map
-m1 = terra::rast(list(rasp,map[[1]])) # add map to raster data
-m1 = terra::as.points(m1) # convert map to spatVector
-names(m1)[names(m1) == y.source] = "y" # rename y column
-# filter map
-HT_b2 = as.data.frame( m1[m1$NAME_KURZ == "02_HT" & m1$slope <= 2] ) # filter plot object
-HT_a2 = as.data.frame( m1[m1$NAME_KURZ == "02_HT" & m1$slope > 2] ) # filter plot object
-
-# plot profile
-dev.new()
-pmt.empty(grid=T,main="")
-pmt.plot( HT_a2, col = "steelblue", cex = 30 )
-pmt.plot( HT_b2, col = "blue", cex = 30 )
-pmt.plot( rapp )
-
-
-b = pmt.bin(HT_b2, interval = 200, value = "median", mode = "bin", cth = NA, sth = NA)
-m = pmt.model( b, deg = 2)
+# mm_f() is used to filter projected data and prepare it for use with old pmt pt.2 functions
+?mm_f()
+# set standard values for mm_f()
+stds = list(
+  projectedRaster = "rasp",
+  yValue = names(rasp)[1],
+  rasterizedMaps = "maps",
+  mapNumber = 1,
+  mapField = "NAME_KURZ"
+)
+# example using pmt functions with mm_f()
+rapp = as.points(rasp); d = data.frame(rapp$x, rapp[[1]], rapp$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rapp); rm(d) # set plot extent
+pmt.empty()
+d = mm_f("01_NT"); d[d$slope <= 2,] %>% pmt.plot()
+b = pmt.bin(d[d$x > 50000 & d$x < 80000,], interval = 200, value = "median", mode = "bin", cth = NA, sth = NA)
+m = pmt.model( b, deg = 1)
 pmt.plotModel(m, col = "blue")
 
 
 
+# 3D plotting and terrace mapping
+# d = mm_f(n=0) # convert raster to data.frame
+d = data.frame( geom(as.points(ras))[,c(3,4)], as.points(ras)[[1]] )
+mapped = mm_map3d(x=d[,1], y=d[,2], z=d[,3], r=rasp$hillshade, type="polygons")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+rainbow(n=1, start = rnorm(n=1,mean=0.5, sd=0.15))
+rnorm(n=1,mean=0.5, sd=0.15)
+
+
+tc = function(x){ st=Sys.time(); eval(parse(text=x)); et=Sys.time(); et-st }
+
+
+
+
+
+
+
+require(ggplot2)
+
+p = ggplot(data=d, mapping = aes(x=x,y=y))
+#p <- p + theme_bw() 
+#p <- p + geom_point(size = 0.25)
+#p = p + geom_density_2d_filled(adjust = 0.25)
+#p = p + geom_bin_2d()
+#p = p + geom_hex()
+#p = p + geom_jitter()
+#p = p + geom_smooth()
+p <- p + geom_point(data=d, aes(x=x,y=y), col="#00000099", size = 0.01, pch= 46)
+print(p)
+
+
+dev.new()
+
+
+
+?geom_density_2d_filled()
+?ggplot2::geom_bin_2d()
+?ggplot2::geom_blank()
+?ggplot2::geom_dotplot()
+?ggplot
+?ggplot2::geom_function()
+?ggplot2::geom_hex()
+?ggplot2::geom_hline()
+?ggplot2::geom_jitter()
+?ggplot2::geom_qq()
+?ggplot2::geom_raster()
+?ggplot2::geom_smooth()
+
+
+
+install.packages("plotly")
+require(plotly)
+plot_ly(data = d, x = ~x, y = ~y, size = I(0.00001), type = "scatter", color = I("black"), symbols = "46")
+
+?plot_ly
+
+
+
+
+#--- start plot 
+p <- ggplot(data=A, aes(x=x,y=y))
+p <- p + theme_bw() 
+p <- p + geom_point(size = 0.25)
+p <- p + geom_point(data=A, aes(x=x,y=y), col="red", size = 0.5)
+#-- Plot
+p <- p + geom_vline(xintercept=confl[1], col='grey35', linetype = "dashed")
+p <- p + geom_vline(xintercept=confl[2], col='grey35', linetype = "dashed")
+p <- p + geom_vline(xintercept=upr_data, col='blue', linetype = "dashed")
+p <- p + geom_hline(yintercept=elev, col='grey35', linetype = "dashed")
+p <- p + geom_line(data=A_PI, aes(x=x, y=lwr), col = coLor[54], linetype = "dashed")
+p <- p + geom_line(data=A_PI, aes(x=x, y=upr), col = coLor[54], linetype = "dashed")
+p <- p + geom_line(data=A_PI, aes(x=x, y=boot.lwr), col = coLor[13], linetype = "dashed")
+p <- p + geom_line(data=A_PI, aes(x=x, y=boot.upr), col = coLor[13], linetype = "dashed")
+p <- p + geom_line(data=A_PI, aes(x=x, y=Function), col = 'magenta', linetype = "dashed")
+p <- p + labs(x="Terrace", y="height", title = paste("Prediction Interval for Terrace ", name))
+p <- p + xlim(lwr_vis,upr_vis) + ylim(elev-10,max(A[A$x>=lwr_vis & A$x<=upr_vis,]$y))
+print(p)
+
+
+
+
+
+library(shiny)
+library(plotly)
+
+shinyApp(
+  ui = shinyUI(fluidPage(
+    titlePanel("Plotly test"),
+    sidebarLayout(sidebarPanel(
+      selectInput(
+        "nb",
+        "Number of points",
+        choices = c(
+          "1K"   = 1000,
+          "10K"  = 10000,
+          "100K" = 100000,
+          "1M"   = 1000000,
+          "10M"  = 10000000
+        )
+      )
+    ),
+    mainPanel(plotlyOutput("plot")))
+  )),
+  server = function(input, output, session) {
+    output$plot <- renderPlotly(plot_ly(
+      data.frame(x = 1:input$nb,
+                 y = rnorm(input$nb)),
+      x =  ~ x,
+      y =  ~ y
+    ) %>%
+      add_lines())
+  }
+)
 
 
 
@@ -175,22 +314,6 @@ rgl::cur3d()
 
 
 
-#### load old pmt3 functions ###################################################
-#install.packages("sm")
-require(readtext)
-pmtPath = "H:/R_Package_Devel/prePackageVersion"
-# get FLAGG specific styles and filter expressions:
-eval(parse(text = readtext(paste0(pmtPath,"/","FLAGGStyles/FLAGGSpecific.R"),verbosity = 0)[[2]]))
-temp<-readtext(paste0(pmtPath,"/","filterExpressions/*.R"), verbosity = 0);for (i in 1:length(temp[,2])){eval(parse(text=temp[i,2]))};rm(temp)
-# ... and specific functions:
-temp<-readtext(paste0(pmtPath,"/","FLAGGStyles/*.R"), verbosity = 0);for (i in 1:length(temp[,2])){eval(parse(text=temp[i,2]))};rm(temp)
-# Laden des PMT pt.2 Toolsets und aller noetigen R Packages
-temp<-readtext(paste0(pmtPath,"/","Functions.R/pt2/*.R"), verbosity = 0);for (i in 1:length(temp[,2])){eval(parse(text=temp[i,2]))};rm(temp)
-pmt.packages()
-eval(parse(text = readtext(paste0(pmtPath,"/","Functions.R/p3d/xloc_yloc.R"),verbosity = 0)[[2]]))
-# load list of DS terrace ids for filtering purposes
-input.path <- paste0(pmtPath,"/","FLAGGStyles/TerraceIds_exportFromQGIS")
-load(paste0(input.path,"/","dsIds.Rdata"));load(paste0(input.path,"/","htIds.Rdata"));load(paste0(input.path,"/","ntIds.Rdata"))
 
 
 
