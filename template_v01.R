@@ -37,76 +37,91 @@ require("s2")
 require("sf")
 require("rgl")
 
+require("raster") # for mm_sampleLines() methods::as("SpatVector", "Spatial")
 
+# set parameters for data preparation and projection
+para = list(
+  ar = 40,                                                                                                        # ar = Analysis resolution
+  sr = 5000,                                                                                                      # sr = Search radius (radius of buffer around profile line)
+  pp = "H:/GIS/PhD/profiles/Iller/parallel_01/profile/profil.gpkg",                                               # pp = path to profile line
+  pr = NA,                                                                                                        # pr = path to one or more rasters
+  pm = list(m1 = "H:/GIS/PhD/maps/flagg/terraces.gpkg", m2 = "H:/GIS/PhD/maps/hydro/rivers_OPAL_buffer200.gpkg"), # pm = path(s) to map(s)
+  mf = list(m1 = "NAME_KURZ",                           m2 = "name"),                                             # mf = field for each map
+  pl = list(l1 = "H:/GIS/PhD/maps/flagg/Ice/MaxIceExtent.gpkg", l2 = "H:/GIS/PhD/maps/hydro/rivers_OPAL.gpkg"),   # pl = path(s) to line(s)
+  po = list(p1 = "H:/GIS/PhD/maps/literatureFigs/haeuselmann2007/Haeuselmann2007_locations.gpkg")                 # po = path(s) to point(s)
+)
 
-analysisReso = 40
-searchRadius = 5000
-path_profile = "H:/GIS/PhD/profiles/Iller/parallel_01/profile/profil.gpkg"
-path_raster = NA # c("notInPackage/testdata/lidar.tif","notInPackage/testdata/lidarFilled.tif")
+# choose alpine lidar path suiting analysis resolution (ar) and add it in front of raster paths in para$pr (comment out, if you want to specify lidar in para$pr[1])
+if ( para$ar <  10 | para$ar == 15         ) { lidar = c("H:/GIS/DEMs/5m/alps_5m.tif")   } else if (
+     para$ar <  20 | para$ar == 30         ) { lidar = c("H:/GIS/DEMs/10m/alps_10m.tif") } else if (
+     para$ar <  50 | para$ar %in% c(60, 80)) { lidar = c("H:/GIS/DEMs/20m/alps_20m.tif") } else if (
+     para$ar >= 50                         ) { lidar = c("H:/GIS/DEMs/50m/alps_50m.tif") }
+if ( is.na(para$pr) ) { para$pr = lidar } else { para$pr = c(lidar, para$pr) }; rm(lidar)
 
+# load and prepare (buffer, metering) profile
+pro = list( line = vect(para$pp), 
+            buffer = buffer(x = vect(para$pp), width = para$sr, capstyle = "flat", joinstyle = "round"), 
+            metering = mm_metering(profile_line = vect(para$pp), spacing = 5000, label = T, labelUnit = "km") ) # --------------------------------------------- optional: edit spacing [m]
 
+# load clip resample rasters
+ras = mm_prepRas(profile=pro$line, para$sr, para$pr, para$ar, makeSlope = T, makeShade = T)
 
-# choose lidar path fitting analysisReso and add lidar path in front of additional raster paths
-if ( analysisReso <  10 | analysisReso == 15         ) { lidar = c("H:/GIS/DEMs/5m/alps_5m.tif") } else if (
-     analysisReso <  20 | analysisReso == 30         ) { lidar = c("H:/GIS/DEMs/10m/alps_10m.tif") } else if (
-     analysisReso <  50 | analysisReso %in% c(60, 80)) { lidar = c("H:/GIS/DEMs/20m/alps_20m.tif") } else if (
-     analysisReso >= 50                             ) { lidar = c("H:/GIS/DEMs/50m/alps_50m.tif") }
-if ( is.na(path_raster) ) { path_raster = lidar } else { path_raster = c(lidar, path_raster) }; rm(lidar)
+# test plot to see if data makes sense so far, using terra::plot or alternatively terra::plet
+plot(ras$hillshade, col=grey.colors(256,rev=T)); polys(pro$buffer, lty=3); lines(pro$line, lwd=1); points(pro$metering, cex=2, col="white"); text(pro$metering, labels=pro$metering$label, halo=T, cex=0.5); north(); sbar()
+plet(ras$hillshade, col=grey.colors(256,rev=T)) %>% lines(pro$line, lwd=2, col="black") %>% lines(pro$buffer, lwd=1, col="black") %>% points(pro$metering, cex=2, col="white")
 
-# load and prepare profile
-profile_line = terra::vect(path_profile)
-profile_buffer = terra::buffer(x = profile_line, width = searchRadius, capstyle = "flat", joinstyle = "round")
-profile_metering = mm_metering(profile_line = profile_line, spacing = 5000, label = T, labelUnit = "km") # --------------------------------------------- spacing
-
-# load rasters
-ras = mm_prepRas(profile=profile_line, searchRadius, path_raster, analysisReso, makeSlope = T, makeShade = T)
-
-# test plot to see if data makes sense so far
-terra::plot(ras$hillshade, col = grey.colors(256, rev = T))
-terra::polys(profile_buffer, lty = 3)
-terra::lines(profile_line, lwd = 1)
-terra::points(profile_metering, cex = 2, col = "white")
-terra::text(profile_metering, labels = profile_metering$label, halo = T, cex = 0.5)
-terra::north(); terra::sbar()
 
 # project rasters on to profile line
-st=Sys.time(); rasp = mm_linRef(p = ras, l = profile_line, addz = T, asVector = F); et=Sys.time(); et-st
+st=Sys.time(); ras = mm_linRef(p = ras, l = pro$line, addz = T, asVector = F); et=Sys.time(); et-st; rm(list = c("et","st"))
 
-# load and prepare a map(s)
-maps = list(      m1 = mm_prepMap(map="H:/GIS/PhD/maps/flagg/terraces.gpkg", field = "NAME_KURZ", cropper = profile_buffer, aligner = ras, asVector = F) ) # -------------- map; field
-maps = append( maps, mm_prepMap(map="H:/GIS/PhD/maps/hydro/rivers_OPAL_buffer200.gpkg", field = "name", cropper = profile_buffer, aligner = ras, asVector = F) ); names(maps)[length(maps)] = "m2" # -------------- map; field; names(map) <-
-
-
-# -> prepare data for pt.2
-# mm_f() is used to filter projected data and prepare it for use with old pmt pt.2 functions
-?mm_f()
-# set standard values for mm_f()
-stds = list(
-  projectedRaster = "rasp",
-  yValue = names(rasp)[1],
-  rasterizedMaps = "maps",
-  mapNumber = 1,
-  mapField = "NAME_KURZ"
-)
-# example using pmt functions with mm_f()
-rapp = as.points(rasp); d = data.frame(rapp$x, rapp[[1]], rapp$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rapp); rm(d) # set plot extent
-pmt.empty()
-d = mm_f("01_NT"); d[d$slope <= 2,] %>% pmt.plot()
-b = pmt.bin(d[d$x > 50000 & d$x < 80000,], interval = 200, value = "median", mode = "bin", cth = NA, sth = NA)
-m = pmt.model( b, deg = 1)
-pmt.plotModel(m, col = "blue")
-
+# load clip rasterize map(s)
+maps = list(); for (i in 1:length(para$pm)) { 
+  maps[[paste0("m",i)]] = mm_prepMap(map = para$pm[[i]], field = para$mf[[i]], cropper = pro$buffer, aligner = ras, asVector = F) }
 
 
 # 3D plotting and terrace mapping
 # d = mm_f(n=0) # convert raster to data.frame
 d = data.frame( geom(as.points(ras))[,c(3,4)], as.points(ras)[[1]] )
-mapped = mm_map3d(x=d[,1], y=d[,2], z=d[,3], r=rasp$hillshade, type="polygons")
+mapped = mm_map3d(x=d[,1], y=d[,2], z=d[,3], r=ras$hillshade, type="polygons")
 
 
+# load sample project lines
+lns = list(); for (i in 1:length(para$pl)) { # load and sample
+  lns[[paste0("l",i)]] = mm_sampleLines(l = para$pl[[i]], cropper = pro$buffer, density = 0.1, raster = ras[[1]]) }
+for (i in 1:length(lns)) { lns[[i]] = mm_linRef(p = lns[[i]], l = pro$line, addz = T, asVector = T) } # project sampled lines
 
 
+# load, add elevation and project points
+pts = list(); for (i in 1:length(para$po)) { pts[[paste0("p",i)]] = vect(para$po[[i]]) } # load points (if multipart points create problems, add terra::disagg(), to convert to singlepart)
+for (i in 1:length(pts)) { pts[[i]][["rastValu"]] = extract(ras[[1]], pts[[i]], method = "bilinear")[,2] } # extract raster values
+for (i in 1:length(pts)) { pts[[i]] = mm_linRef(p = pts[[i]], l = pro$line, addz = T, asVector = T) } # project points
 
+
+# plot data with pmt3 pt.2
+# mm_f() is used to filter projected data and prepare it for use with old pmt pt.2 functions
+?mm_f()
+# set standard values for mm_f()
+stds = list(
+  projectedRaster = "ras",
+  yValue = names(ras)[1],
+  rasterizedMaps = "maps",
+  mapNumber = 1,
+  mapField = para$mf$m1
+)
+# example using pmt functions with mm_f()
+dev.new()
+rap = as.points(ras); d = data.frame(rap$x, rap[[1]], rap$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rap); rm(d) # auto set plot extent for pmt3
+pmt.empty(grid=T,main="")
+d = mm_f("01_NT"); d[d$slope <= 2,] %>% pmt.plot(col="#98c872", cex=20)
+mm_f(m=NA) %>% pmt.plot(col="#00000033", cex=1)
+b = pmt.bin(d[d$x > 50000 & d$x < 80000,], interval = 200, value = "median", mode = "bin", cth = NA, sth = NA)
+m = pmt.model( b, deg = 1)
+pmt.plotModel(m, col = "blue",conf=F)
+
+points(pts$p1[[c("x","elev")]], pch=21, bg = "yellow", col = "blue", lwd = 2, cex = 2) # outcrops
+
+points(lns$l1[[c("x","rastValu")]], pch = 46, col = "steelblue", cex = 2) # ice
+points(lns$l2[[c("x","rastValu")]], pch = 46, col = "blue", cex = 2) # rivers
 
 
 
@@ -242,41 +257,27 @@ shinyApp(
 ########################################################################## START
 #### testing rgl package #######################################################
 
-require("rgl")
 
-d = data.frame( geom(rapp)[,c(3,4)], rapp[[1]] )
-
-open3d()
-points3d(d, size = 0.01)
-axes3d(box = F, labels = F, tick = F, expand = 2)
-title3d(main = NULL, zlab = "elev", line =1, level = 3)
+install.packages("mapedit")
+install.packages("leafpm")
 
 
+lidar = rast("H:/GIS/DEMs/5m/alps_5m.tif")
+lidar = rast("H:/GIS/DEMs/10m/alps_10m.tif")
+lidar = rast("H:/GIS/DEMs/20m/alps_20m.tif")
+lidar = rast("H:/GIS/DEMs/50m/alps_50m.tif")
 
-plot3d(d, size = 1, col = "steelblue", type = "p")
-play3d(spin3d(axis = c(0,0,1), rpm = 10), duration = 5)
-
-
-open3d()
-bg3d(color = "black")
-points3d(d$x,d$y,d$alps_20m*100, size = 1, col = "white")
-# pch3d(d$x,d$y,d$alps_20m*100, col = "white", pch = 16, cex = 0.003) # too slow
-aspect3d(1,1,1) # adjust axis ratios
-grid3d(side = "z-") # add horizontal grid at the bbox bottom
-observer3d(0,-5000,150000) # adjust viewpoint
-observer3d(auto = T) # reset viewpoint
-# view3d()
-par3d(mouseMode = c("none","trackball","zAxis","selecting","zoom")) # c("none", "left", "right", "middle", "wheel")
+#m = plet(lidar, col = grey.colors(256, rev = T) )
+plet(ras$hillshade, col = grey.colors(256, rev = T) ) %>% lines(profile$line, lwd=2, col= "black") %>%
+lines(profile$buffer, lwd=1, col="black") %>% points(profile$metering, cex=2, col="white")
 
 
-play3d(spin3d(axis = c(0,0,1), rpm = 10), duration = 5)
+
 
 
 rgl::clear3d()
 rgl::close3d()
 rgl::.check3d()
-
-
 
 rgl::view3d()
 rgl::tkspin3d()
@@ -323,9 +324,10 @@ rgl::cur3d()
 # terra::plet requires a devel version of leaflet
 # remotes::install_github("rstudio/leaflet")
 m = plet(ras$hillshade, col = grey.colors(256, rev = T) )
-m = lines(m, profile_line, lwd=2, col= "black")
-m = lines(m, profile_buffer, lwd=1, col="black")
-points(m, profile_metering, cex=2, col="white")
+m = lines(m, profile$line, lwd=2, col= "black")
+m = lines(m, profile$buffer, lwd=1, col="black")
+points(m, profile$metering, cex=2, col="white")
+
 
 
 

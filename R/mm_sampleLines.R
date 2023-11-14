@@ -1,6 +1,6 @@
 #' Sample points along lines, extracting raster value for each point.
 #'
-#' Requires terra, sf packages.
+#' Requires terra, sf, raster packages.
 #' Takes a spatVector of lines (or the path to a shapefile) and a spatRaster. Points are placed along the line in a given density (number per unit), and raster values are extracted at the point locations. The lines are cropped, to match the profile buffer.
 #' Output is a SpatVector of points attributed by the local raster values.
 #' @param l SpatVector or path to gpkg of lines to sample.

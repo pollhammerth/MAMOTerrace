@@ -31,6 +31,10 @@
 #' 
 #' # filter all pixels that are within mapped areas;
 #' mm_f();
+#' 
+#' # convert full raster to data.frame;
+#' mm_f(m=NA);
+#' 
 #' @export
 mm_f = function( v, f = stds$mapField, c = "==", n = stds$mapNumber, x = get(stds$projectedRaster), y = stds$yValue, m = get(stds$rasterizedMaps) ) {
   
