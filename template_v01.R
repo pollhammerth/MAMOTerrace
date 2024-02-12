@@ -41,14 +41,14 @@ require("raster") # for mm_sampleLines() methods::as("SpatVector", "Spatial")
 
 # set parameters for data preparation and projection
 para = list(
-  ar = 40,                                                                                                        # ar = Analysis resolution
+  ar = 20,                                                                                                        # ar = Analysis resolution
   sr = 5000,                                                                                                      # sr = Search radius (radius of buffer around profile line)
-  pp = "H:/GIS/PhD/profiles/Iller/parallel_01/profile/profil.gpkg",                                               # pp = path to profile line
+  pp = "notInPackage/helperline.gpkg",                                               # pp = path to profile line
   pr = NA,                                                                                                        # pr = path to one or more rasters
-  pm = list(m1 = "H:/GIS/PhD/maps/flagg/terraces.gpkg", m2 = "H:/GIS/PhD/maps/hydro/rivers_OPAL_buffer200.gpkg"), # pm = path(s) to map(s)
-  mf = list(m1 = "NAME_KURZ",                           m2 = "name"),                                             # mf = field for each map
+  pm = list(m1 = "H:/GIS/PhD/maps/flagg/terraces.gpkg", m2 = "H:/GIS/PhD/maps/hydro/rivers_OPAL_buffer200.gpkg", m3 = "H:/GIS/Coops/Ewelina/maps/mapV3/terraces_CH25_BW50_noLake_inclSchrotz.gpkg"),# m3 = "notInPackage/Qmap.gpkg"), # pm = path(s) to map(s)
+  mf = list(m1 = "NAME_KURZ",                           m2 = "name", m3 = "Strat"),# m3 = "names"),                                             # mf = field for each map
   pl = list(l1 = "H:/GIS/PhD/maps/flagg/Ice/MaxIceExtent.gpkg", l2 = "H:/GIS/PhD/maps/hydro/rivers_OPAL.gpkg"),   # pl = path(s) to line(s)
-  po = list(p1 = "H:/GIS/PhD/maps/literatureFigs/haeuselmann2007/Haeuselmann2007_locations.gpkg")                 # po = path(s) to point(s)
+  po = list(p1 = "H:/GIS/PhD/maps/literatureFigs/haeuselmann2007/Haeuselmann2007_locations.gpkg", p2 = "H:/GIS/Coops/Ewelina/ages/DS_sites_coordinates_epsg32632.gpkg")                 # po = path(s) to point(s)
 )
 
 # choose alpine lidar path suiting analysis resolution (ar) and add it in front of raster paths in para$pr (comment out, if you want to specify lidar in para$pr[1])
@@ -82,7 +82,18 @@ maps = list(); for (i in 1:length(para$pm)) {
 # 3D plotting and terrace mapping
 # d = mm_f(n=0) # convert raster to data.frame
 d = data.frame( geom(as.points(ras))[,c(3,4)], as.points(ras)[[1]] )
+#d = d[d$alps_20m<360,]
 mapped = mm_map3d(x=d[,1], y=d[,2], z=d[,3], r=ras$hillshade, type="polygons")
+#### space for map editing ############################################### START
+
+map = cbind(mapped, data.frame(names = "HT"))
+map = disagg(map)
+writeVector(vect("notInPackage/Qmap.gpkg"), "notInPackage/Qmap_backup.gpkg", overwrite = T)
+map = rbind(vect("notInPackage/Qmap.gpkg"), map)
+plet(map)
+writeVector(map, "notInPackage/Qmap.gpkg", overwrite = T)
+
+############################################################################ END
 
 
 # load sample project lines
@@ -101,42 +112,65 @@ for (i in 1:length(pts)) { pts[[i]] = mm_linRef(p = pts[[i]], l = pro$line, addz
 # mm_f() is used to filter projected data and prepare it for use with old pmt pt.2 functions
 ?mm_f()
 # set standard values for mm_f()
-stds = list(
-  projectedRaster = "ras",
-  yValue = names(ras)[1],
-  rasterizedMaps = "maps",
-  mapNumber = 1,
-  mapField = para$mf$m1
+stds = list( # v, c
+  projectedRaster = "ras", # x
+  yValue = names(ras)[1], # y
+  rasterizedMaps = "maps", # m
+  mapNumber = 3, # n
+  mapField = para$mf$m3 # f
 )
 # example using pmt functions with mm_f()
 dev.new()
 rap = as.points(ras); d = data.frame(rap$x, rap[[1]], rap$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rap); rm(d) # auto set plot extent for pmt3
 pmt.empty(grid=T,main="")
+
 d = mm_f("01_NT"); d[d$slope <= 2,] %>% pmt.plot(col="#98c872", cex=20)
-mm_f(m=NA) %>% pmt.plot(col="#00000033", cex=1)
-b = pmt.bin(d[d$x > 50000 & d$x < 80000,], interval = 200, value = "median", mode = "bin", cth = NA, sth = NA)
+d = mm_f("02_HT"); d[d$slope <= 90,] %>% pmt.plot(col="#5b8cbb", cex=20)
+d = mm_f("03c_TDS_Mindel_Guenz_1800_780_ka"); d[d$slope <= 90,] %>% pmt.plot(col="#907a58", cex=20)
+d = mm_f("06a_HDS_Donau_Biber_1800_780_ka"); d[d$slope <= 90,] %>% pmt.plot(col="#dd4243", cex=20)
+
+d = mm_f("NT"); d[d$slope <= 2,] %>% pmt.plot(col="#98c872", cex=20)
+d = mm_f("HT"); d[d$slope <= 90,] %>% pmt.plot(col="#5b8cbb", cex=20)
+d = mm_f("TDS"); d[d$slope <= 90,] %>% pmt.plot(col="#907a58", cex=20)
+d = mm_f("HDS"); d[d$slope <= 90,] %>% pmt.plot(col="#dd4243", cex=20)
+
+mm_f(n=0) %>% pmt.plot(col="#00000033", cex=1)
+
+d = mm_f("01_NT"); d = d[d$slope <= 2,]
+b = pmt.bin(d, interval = 200, value = "median", mode = "bin", cth = NA, sth = NA)
 m = pmt.model( b, deg = 1)
 pmt.plotModel(m, col = "blue",conf=F)
 
 points(pts$p1[[c("x","elev")]], pch=21, bg = "yellow", col = "blue", lwd = 2, cex = 2) # outcrops
+points(as.numeric(pts$p2$x),as.numeric(pts$p2$elevation), pch=21, bg = "yellow", col = "blue", lwd = 2, cex = 2) # outcrops
 
 points(lns$l1[[c("x","rastValu")]], pch = 46, col = "steelblue", cex = 2) # ice
 points(lns$l2[[c("x","rastValu")]], pch = 46, col = "blue", cex = 2) # rivers
 
 
+unique(maps$m3$Strat)
+
+
+
+pmt.empty(grid=T,main="")
+d = mm_f("SCH"); d[d$slope <= 4,] %>% pmt.plot(col="#98c872", cex=20)
+d = as.data.frame(ras)[c("x",names(ras)[1])]; names(d)[2] = "y"; d %>% pmt.plot(col="#00000033", cex=1)
+d = mm_f("SCH"); d = d[d$slope <= 4,]
+b = pmt.bin(d, interval = 200, value = "median", mode = "bin", cth = NA, sth = NA)
+m = pmt.model( b, deg = 1)
+pmt.plotModel(m, col = "blue",conf=F)
 
 
 
 
+pmt.measureSlope()
 
+pmt.measureSpacing()
 
-
-
-
-
-
-
-
+# Limmat  36 m; 6 promille
+# Reuss   72 - 81 m; 15.4 promille (local, 1km length); 7.3 promille
+# Buenz   46 m; 18.9 permil
+# Aabach  34 m; 13.8 permil
 
 
 rainbow(n=1, start = rnorm(n=1,mean=0.5, sd=0.15))
