@@ -11,7 +11,8 @@ mm_f(
   n = stds$mapNumber,
   x = get(stds$projectedRaster),
   y = stds$yValue,
-  m = get(stds$rasterizedMaps)
+  m = get(stds$rasterizedMaps),
+  ...
 )
 }
 \arguments{
@@ -28,6 +29,10 @@ mm_f(
 \item{y}{Character. Name of the field (layer) containing elevation values. This field will be named "y" in the output.}
 
 \item{m}{SpatRaster. List of rasterized maps. Maps as created with mm_prepMap(). The resolution needs to be the same as of x.}
+
+\item{...}{Arguments for mm_bab(). Standards are x = pro$line, width = para$sr and s for side of the profile to be filtered.}
+
+\item{s}{Numeric. Choose to filter for right or left side of the profile line (1 or 2), or do not provide s for both sides.}
 }
 \value{
 data.frame
@@ -44,7 +49,7 @@ map = mm_prpMap(map="notInPackage/testdata/terraceMap.gpkg",field="NAME_KURZ",cr
 maps = list(map);
 
 # stds is a helper, setting standard argument input for mm_f(), so values do not have to be typed each time.;
-stds = list(projectedRaster = "DEMp", yValue = names(rasp)[1], rasterizedMaps = "maps", mapNumber = 1, mapField = "NAME_KURZ");
+stds = list(projectedRaster = "DEMp", yValue = names(rasp)[1], rasterizedMaps = "maps", mapNumber = 1, mapField = "NAME_KURZ", orographicSide = 3);
 
 # filter single mapped value;
 mm_f("01_NT");
@@ -57,4 +62,8 @@ mm_f(2,"slope","<=");
 
 # filter all pixels that are within mapped areas;
 mm_f();
+
+# convert full raster to data.frame;
+mm_f(m=NA);
+
 }

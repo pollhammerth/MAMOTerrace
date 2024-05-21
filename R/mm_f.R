@@ -10,6 +10,8 @@
 #' @param x SpatRaster, SpatVector or data.frame. Projected raster data.
 #' @param y Character. Name of the field (layer) containing elevation values. This field will be named "y" in the output.
 #' @param m SpatRaster. List of rasterized maps. Maps as created with mm_prepMap(). The resolution needs to be the same as of x.
+#' @param s Numeric. Choose to filter for right or left side of the profile line (1 or 2), or do not provide s for both sides.
+#' @param ... Arguments for mm_bab(). Standards are x = pro$line, width = para$sr and s for side of the profile to be filtered.
 #' @return data.frame
 #' @examples 
 #' DEM = mm_prepRas(profile = "notInPackage/testdata/profile.gpkg", searchRadius = 3000, raster = c("notInPackage/testdata/lidar.tif", "notInPackage/testdata/lidarFilled.tif"), analysisReso=100, makeSlope = T, makeShade = T);
@@ -18,7 +20,7 @@
 #' maps = list(map);
 #' 
 #' # stds is a helper, setting standard argument input for mm_f(), so values do not have to be typed each time.;
-#' stds = list(projectedRaster = "DEMp", yValue = names(rasp)[1], rasterizedMaps = "maps", mapNumber = 1, mapField = "NAME_KURZ");
+#' stds = list(projectedRaster = "DEMp", yValue = names(rasp)[1], rasterizedMaps = "maps", mapNumber = 1, mapField = "NAME_KURZ", orographicSide = 3);
 #' 
 #' # filter single mapped value;
 #' mm_f("01_NT");
@@ -36,10 +38,12 @@
 #' mm_f(m=NA);
 #' 
 #' @export
-mm_f = function( v, f = stds$mapField, c = "==", n = stds$mapNumber, x = get(stds$projectedRaster), y = stds$yValue, m = get(stds$rasterizedMaps) ) {
-  
+mm_f = function( v, f = stds$mapField, c = "==", n = stds$mapNumber, x = get(stds$projectedRaster), y = stds$yValue, m = get(stds$rasterizedMaps), ... ) {
+
   if (class(x)[1] == "SpatRaster") { # if the input is "SpatVector" or data.frame, it is assumed, this has been done before.
+    x = terra::mask( x, mm_bab(...) )
     if (n != 0) {
+      m[[n]] = terra::mask( m[[n]], mm_bab(...) )
       x = terra::rast( list( x, m[[n]] ) ) # add map to raster data (reduces pixels to exising polygon areas)
     }
     x = terra::as.points( x ) # convert map to spatVector
@@ -58,5 +62,5 @@ mm_f = function( v, f = stds$mapField, c = "==", n = stds$mapNumber, x = get(std
   }
   
   return(x)
-  
+
 }
