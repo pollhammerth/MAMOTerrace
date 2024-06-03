@@ -44,6 +44,7 @@ mm_metering = function(profile_line, spacing = 1000, label = T, labelUnit = "km"
   if (label) {
     n = seq(0, 1, by = 1/l*spacing)
     label = n * l / if (labelUnit == "km") {1000} else if (labelUnit == "m") {1}
+    label = round(label, digits = 0)
     terra::values(profile_metering) = as.data.frame(label)
   }
   

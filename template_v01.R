@@ -41,14 +41,14 @@ require("raster") # for mm_sampleLines() methods::as("SpatVector", "Spatial")
 
 # NAF set parameters for data preparation and projection
 para = list(
-  ar =20,                                                                                                        # ar = Analysis resolution
-  sr = 4000,                                                                                                      # sr = Search radius (radius of buffer around profile line)
+  ar =40,                                                                                                        # ar = Analysis resolution
+  sr = 1500,                                                                                                      # sr = Search radius (radius of buffer around profile line)
   pp = "notInPackage/helperline.gpkg",                                               # pp = path to profile line
   pr = NA,                                                                                                        # pr = path to one or more rasters
-  pm = list(m1 = "H:/GIS/PhD/maps/flagg/terraces.gpkg", m2 = "H:/GIS/Coops/Ewelina/maps/mapV3/terraces_CH25_BW50_noLake_inclSchrotz.gpkg"),# m3 = "notInPackage/Qmap.gpkg"), # pm = path(s) to map(s)
+  pm = list(m1 = "H:/GIS/PhD/maps/flagg/terraces.gpkg", m2 = "H:/GIS/Coops/Ewelina/maps/mapV3/terraces_CH25_BW50_noLake_inclSchrotz.gpkg", m3 = "notInPackage/helperolygon.gpkg"),# m3 = "notInPackage/Qmap.gpkg"), # pm = path(s) to map(s)
   mf = list(m1 = "NAME_KURZ", m2 = "Strat"),# m3 = "names"),                                             # mf = field for each map
   pl = list(l1 = "H:/GIS/PhD/maps/flagg/Ice/MaxIceExtent.gpkg", l2 = "H:/GIS/PhD/maps/hydro/rivers_OPAL.gpkg"),   # pl = path(s) to line(s)
-  po = list(p1 = "H:/GIS/PhD/maps/literatureFigs/haeuselmann2007/Haeuselmann2007_locations.gpkg", p2 = "H:/GIS/Coops/Ewelina/ages/DS_sites_coordinates_epsg32632.gpkg")                 # po = path(s) to point(s)
+  po = list(p1 = "H:/GIS/PhD/maps/literatureFigs/haeuselmann2007/Haeuselmann2007_locations.gpkg", p2 = "notInPackage/helperoint.gpkg")                 # po = path(s) to point(s)
 )
 # choose alpine lidar path suiting analysis resolution (ar) and add it in front of raster paths in para$pr (comment out, if you want to specify lidar in para$pr[1])
 if ( para$ar <  10 | para$ar == 15         ) { lidar = c("H:/GIS/DEMs/5m/alps_5m.tif")   } else if (
@@ -109,7 +109,7 @@ maps = list(); for (i in 1:length(para$pm)) {
 
 
 # mm_f() is used to filter projected data and prepare it for use with old pmt pt.2 functions, and mm_map3d().
-?mm_f()
+#?mm_f()
 # set standard values for mm_f() (also mm_bab())
 stds = list( # v, cr
   projectedRaster = "ras", # x
@@ -161,6 +161,7 @@ for (i in 1:length(pts)) { pts[[i]] = mm_linRef(p = pts[[i]], l = pro$line, addz
 dev.new()
 dev.cur()
 dev.set(which = dev.prev())
+
 rap = as.points(ras); d = data.frame(rap$x, rap[[1]], rap$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rap); rm(d) # auto set plot extent for pmt3
 pmt.empty(grid=T,main="")
 
@@ -202,21 +203,26 @@ b = pmt.bin(d, interval = 200, value = "median", mode = "bin", cth = NA, sth = N
 m = pmt.model( b, deg = 1)
 pmt.plotModel(m, col = "blue",conf=F)
 
-points(pts$p1[[c("x","elev")]], pch=21, bg = "yellow", col = "blue", lwd = 2, cex = 2) # outcrops
+points(pts$p2[[c("x","SAMPLE_1")]], pch=21, bg = "yellow", col = "blue", lwd = 2, cex = 2) # outcrops
 points(as.numeric(pts$p2$x),as.numeric(pts$p2$elevation), pch=21, bg = "yellow", col = "blue", lwd = 2, cex = 2) # outcrops
 
 points(lns$l1[[c("x","rastValu")]], pch = 46, col = "steelblue", cex = 2) # ice
 points(lns$l2[[c("x","rastValu")]], pch = 46, col = "blue", cex = 2) # rivers
 
 
+pts$p2
+locator()
 
-
-
+fullExtent = extent
+fullExtent
+extent
+extent$ylim = c(280,550)
+extent$xlim = c(3000,83700)
 
 plot01 <- function(gr = T, px=T){
   pmt.empty(grid=gr,main="")
   if(px){
-  s=10
+  s=5
 #  d = mm_f("10a_Hoehenschotter"); d[d$slope <= 90,] %>% pmt.plot(col="#bbed26", cex=s)
   d = mm_f("10_Altplei_Plio"); d[d$slope <= 90,] %>% pmt.plot(col="#398017", cex=s)
 #  d = mm_f("06_HADS"); d[d$slope <= 90,] %>% pmt.plot(col="#ad3a01", cex=s)
@@ -233,10 +239,10 @@ plot01 <- function(gr = T, px=T){
 }
 
 # define export name
-proName = "Traun_HT"
+proName = "Ottnang_DS"
 
 # export plot and map
-png(paste0("notInPackage/output/",proName,".png"), width = 27/2.54, height = 19/2.54, res = 400, units = "in"); plot01(gr=F,px=T); dev.off(); dev.set(which = dev.prev())
+png(paste0("notInPackage/output/",proName,".png"), width = 20/2.54, height = 14/2.54, res = 400, units = "in"); plot01(gr=F,px=T); dev.off(); dev.set(which = dev.prev())
 pdf(paste0("notInPackage/output/",proName,".pdf"), width = 10/2.54, height = 10/2.54); plot01(gr=T,px=F); dev.off(); dev.set(which = dev.prev())
 
 png(paste0("notInPackage/output/",proName,"_map.png"), width = 27*2/2.54, height = 19*2/2.54, res = 400, units = "in")
@@ -255,11 +261,14 @@ write.csv( t(as.data.frame(para)), file = paste0("notInPackage/output/",proName,
 
 ######## DEVEL #################################################################
 # color coded 3d plot
+
+stds$orographicSide = 3
+
 dem = mm_f(n=0); dem = dem[dem$slope <= 90,]
 
 clear3d()
 
-exagg = 100
+exagg = 30
 
 points3d(dem$X,dem$Y,dem$y*exagg, size = 0.01, col = "#000000")
 

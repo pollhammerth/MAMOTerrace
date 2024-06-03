@@ -10,7 +10,7 @@
 #' @param x SpatRaster, SpatVector or data.frame. Projected raster data.
 #' @param y Character. Name of the field (layer) containing elevation values. This field will be named "y" in the output.
 #' @param m SpatRaster. List of rasterized maps. Maps as created with mm_prepMap(). The resolution needs to be the same as of x.
-#' @param s Numeric. Choose to filter for right or left side of the profile line (1 or 2), or do not provide s for both sides.
+#' @param s Numeric. Choose to filter for right or left side of the profile line (1 or 2), or 3 both sides.
 #' @param ... Arguments for mm_bab(). Standards are x = pro$line, width = para$sr and s for side of the profile to be filtered.
 #' @return data.frame
 #' @examples 
