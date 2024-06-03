@@ -41,8 +41,8 @@ require("raster") # for mm_sampleLines() methods::as("SpatVector", "Spatial")
 
 # NAF set parameters for data preparation and projection
 para = list(
-  ar =40,                                                                                                        # ar = Analysis resolution
-  sr = 1500,                                                                                                      # sr = Search radius (radius of buffer around profile line)
+  ar =10,                                                                                                        # ar = Analysis resolution
+  sr = 2000,                                                                                                      # sr = Search radius (radius of buffer around profile line)
   pp = "notInPackage/helperline.gpkg",                                               # pp = path to profile line
   pr = NA,                                                                                                        # pr = path to one or more rasters
   pm = list(m1 = "H:/GIS/PhD/maps/flagg/terraces.gpkg", m2 = "H:/GIS/Coops/Ewelina/maps/mapV3/terraces_CH25_BW50_noLake_inclSchrotz.gpkg", m3 = "notInPackage/helperolygon.gpkg"),# m3 = "notInPackage/Qmap.gpkg"), # pm = path(s) to map(s)
@@ -93,22 +93,8 @@ st=Sys.time(); ras = mm_linRef(p = ras, l = pro$line, addz = T, asVector = F); e
 maps = list(); for (i in 1:length(para$pm)) { 
   maps[[paste0("m",i)]] = mm_prepMap(map = para$pm[[i]], field = para$mf[[i]], cropper = pro$buffer, aligner = ras, asVector = F) }
 
-#### not needed anymore. included in mm_f()
-# add map, indicating (profile-)orographic left/right
-# mm_bab = function(x = pro$line, width = para$sr, aligner = ras, side = 3){
-#   oroA = terra::buffer(pro$line, capstyle = "flat", singlesided = T, width = para$sr, joinstyle = "round")
-#   fullbuffer = buffer(x = x, width = width, capstyle = "flat", joinstyle = "round")
-#   oroB = terra::erase(fullbuffer, oroA)
-#   oroA[["side"]] = 1; oroB[["side"]] = 2
-#   oro = terra::union(oroA,oroB)
-#   if (side == 3) { return(oro) } else
-#     if (side == 1) { return(oroA) } else
-#       if (side == 2) { return(oroB) }
-# }
-# oro = mm_bab(); maps[["oro"]] = mm_prepMap(map = oro, field = "side", cropper = pro$buffer, aligner = ras, asVector = F)
 
-
-# mm_f() is used to filter projected data and prepare it for use with old pmt pt.2 functions, and mm_map3d().
+# mm_f() is used to filter projected data and prepare it for use with old pmt pt.2 functions, and can also be used for prep for mm_map3d().
 #?mm_f()
 # set standard values for mm_f() (also mm_bab())
 stds = list( # v, cr
@@ -126,7 +112,7 @@ clear3d()
 d = mm_f(n=0); d = d[d$slope <= 90,] # convert raster to data.frame
 d = mm_f(n = 0, s = 2)
 d = mm_f("02_HT", s = 1)
-#d = data.frame( geom(as.points(ras))[,c(3,4)], as.points(ras)[[1]] )
+#d = data.frame( geom(as.points(ras))[,c(3,4)], as.points(ras)[[1]] ) # if you do not want to use mm_f()
 #d = d[d$y<360,]
 mapped = mm_map3d(x=d$X, y=d$Y, z=d$y, r=ras$hillshade, type="polygons")
 #### space for map editing ############################################### START
@@ -216,8 +202,8 @@ locator()
 fullExtent = extent
 fullExtent
 extent
-extent$ylim = c(280,550)
-extent$xlim = c(3000,83700)
+extent$ylim = c(330,580)
+#extent$xlim = c(3000,83700)
 
 plot01 <- function(gr = T, px=T){
   pmt.empty(grid=gr,main="")
@@ -239,7 +225,7 @@ plot01 <- function(gr = T, px=T){
 }
 
 # define export name
-proName = "Ottnang_DS"
+proName = "Katzenbach_HT"
 
 # export plot and map
 png(paste0("notInPackage/output/",proName,".png"), width = 20/2.54, height = 14/2.54, res = 400, units = "in"); plot01(gr=F,px=T); dev.off(); dev.set(which = dev.prev())
@@ -265,6 +251,8 @@ write.csv( t(as.data.frame(para)), file = paste0("notInPackage/output/",proName,
 stds$orographicSide = 3
 
 dem = mm_f(n=0); dem = dem[dem$slope <= 90,]
+y_upper_limit = 550
+dem = dem[dem$y <= y_upper_limit,]
 
 clear3d()
 
@@ -272,11 +260,11 @@ exagg = 30
 
 points3d(dem$X,dem$Y,dem$y*exagg, size = 0.01, col = "#000000")
 
-d = mm_f("01_NT"); d = d[d$slope <= 1,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#98c872")
-d = mm_f("02_HT"); d = d[d$slope <= 1,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#5b8cbb")
-d = mm_f("03_JDS"); d = d[d$slope <= 90,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#ffaf01")
-d = mm_f("05_TADS"); d = d[d$slope <= 90,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#ff0101")
-d = mm_f("10_Altplei_Plio"); d = d[d$slope <= 90,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#398017")
+d = mm_f("01_NT"); d = d[d$slope <= 1,]; d = d[d$y <=y_upper_limit,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#98c872")
+d = mm_f("02_HT"); d = d[d$slope <= 1,]; d = d[d$y <=y_upper_limit,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#5b8cbb")
+d = mm_f("03_JDS"); d = d[d$slope <= 90,]; d = d[d$y <=y_upper_limit,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#ffaf01")
+d = mm_f("05_TADS"); d = d[d$slope <= 90,]; d = d[d$y <=y_upper_limit,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#ff0101")
+d = mm_f("10_Altplei_Plio"); d = d[d$slope <= 90,]; d = d[d$y <=y_upper_limit,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#398017")
 
 rgl::grid3d(side = c("x","y","z"))
 rgl::axes3d()

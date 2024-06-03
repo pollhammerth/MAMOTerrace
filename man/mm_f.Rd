@@ -32,7 +32,7 @@ mm_f(
 
 \item{...}{Arguments for mm_bab(). Standards are x = pro$line, width = para$sr and s for side of the profile to be filtered.}
 
-\item{s}{Numeric. Choose to filter for right or left side of the profile line (1 or 2), or do not provide s for both sides.}
+\item{s}{Numeric. Choose to filter for right or left side of the profile line (1 or 2), or 3 both sides.}
 }
 \value{
 data.frame
