@@ -4,23 +4,14 @@
 \alias{mm_prepRas}
 \title{Load, crop and align rasters}
 \usage{
-mm_prepRas(
-  profile,
-  searchRadius,
-  raster,
-  analysisReso,
-  makeSlope = T,
-  makeShade = T
-)
+mm_prepRas(raster, analysisReso, buffer, makeSlope = T, makeShade = T)
 }
 \arguments{
-\item{profile}{character (path to) or spatVector of a profile line.}
-
-\item{searchRadius}{Radius around the profile to create a buffer to clip rasters with.}
-
 \item{raster}{vector or list of character (path to) and or spatRaster.}
 
 \item{analysisReso}{Resolution to which all rasters should be resampled.}
+
+\item{buffer}{SpatVector. Polygon, that raster should be cropped and masked to.}
 
 \item{makeSlope}{logical. Should a slope raster be added for the first provided raster?}
 

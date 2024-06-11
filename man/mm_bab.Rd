@@ -4,10 +4,10 @@
 \alias{mm_bab}
 \title{Create split buffer around a line (one polygon for right and left side respectively)}
 \usage{
-mm_bab(x = pro$line, width = para$sr, s = stds$orographicSide)
+mm_bab(profile = pro$line, width = NA, s = stds$orographicSide)
 }
 \arguments{
-\item{x}{SpatVector. A Line, around which the buffer should be created.}
+\item{profile}{SpatVector. A Line, around which the buffer should be created.}
 
 \item{width}{Numeric. Width of the buffer.}
 

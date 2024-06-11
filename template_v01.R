@@ -39,16 +39,19 @@ require("rgl")
 
 require("raster") # for mm_sampleLines() methods::as("SpatVector", "Spatial")
 
-# NAF set parameters for data preparation and projection
+
+
+# NAF set parameters for data preparation and projection #######################
 para = list(
-  ar =10,                                                                                                        # ar = Analysis resolution
-  sr = 2000,                                                                                                      # sr = Search radius (radius of buffer around profile line)
+  ar = 20,                                                                                                        # ar = Analysis resolution
+  sr = 5000,                                                                                                      # sr = Search radius (radius of buffer around profile line)
   pp = "notInPackage/helperline.gpkg",                                               # pp = path to profile line
   pr = NA,                                                                                                        # pr = path to one or more rasters
   pm = list(m1 = "H:/GIS/PhD/maps/flagg/terraces.gpkg", m2 = "H:/GIS/Coops/Ewelina/maps/mapV3/terraces_CH25_BW50_noLake_inclSchrotz.gpkg", m3 = "notInPackage/helperolygon.gpkg"),# m3 = "notInPackage/Qmap.gpkg"), # pm = path(s) to map(s)
   mf = list(m1 = "NAME_KURZ", m2 = "Strat"),# m3 = "names"),                                             # mf = field for each map
   pl = list(l1 = "H:/GIS/PhD/maps/flagg/Ice/MaxIceExtent.gpkg", l2 = "H:/GIS/PhD/maps/hydro/rivers_OPAL.gpkg"),   # pl = path(s) to line(s)
-  po = list(p1 = "H:/GIS/PhD/maps/literatureFigs/haeuselmann2007/Haeuselmann2007_locations.gpkg", p2 = "notInPackage/helperoint.gpkg")                 # po = path(s) to point(s)
+  po = list(p1 = "H:/GIS/PhD/maps/literatureFigs/haeuselmann2007/Haeuselmann2007_locations.gpkg", p2 = "notInPackage/helperoint.gpkg"),                 # po = path(s) to point(s)
+  p360 = list(X = 768227, Y = 5349368, radius = 7000, count = 48)
 )
 # choose alpine lidar path suiting analysis resolution (ar) and add it in front of raster paths in para$pr (comment out, if you want to specify lidar in para$pr[1])
 if ( para$ar <  10 | para$ar == 15         ) { lidar = c("H:/GIS/DEMs/5m/alps_5m.tif")   } else if (
@@ -59,44 +62,124 @@ if ( is.na(para$pr) ) { para$pr = lidar } else { para$pr = c(lidar, para$pr) }; 
 
 
 
-# ICELAND set parameters for data preparation and projection
-para = list(
-  ar = 8,                                                                                                        # ar = Analysis resolution
-  sr = 600,                                                                                                      # sr = Search radius (radius of buffer around profile line)
-  pp = "H:/TBA/ArcticDEM/Iceland/MAMU/helperline.gpkg",                                               # pp = path to profile line
-  pr = "H:/TBA/ArcticDEM/Iceland/merged/15_54.tif",                                                                                                        # pr = path to one or more rasters
-  pm = list(m1 = "H:/TBA/ArcticDEM/Iceland/MAMU/helpermap.gpkg"),# m3 = "notInPackage/Qmap.gpkg"), # pm = path(s) to map(s)
-  mf = list(m1 = "name"),# m3 = "names"),                                             # mf = field for each map
-  pl = list(l1 = "H:/GIS/PhD/maps/flagg/Ice/MaxIceExtent.gpkg", l2 = "H:/GIS/PhD/maps/hydro/rivers_OPAL.gpkg"),   # pl = path(s) to line(s)
-  po = list(p1 = "H:/GIS/PhD/maps/literatureFigs/haeuselmann2007/Haeuselmann2007_locations.gpkg", p2 = "H:/GIS/Coops/Ewelina/ages/DS_sites_coordinates_epsg32632.gpkg")                 # po = path(s) to point(s)
-)
-
-
+#### long-profile projection ###################################################
+if(!exists("lp")) { lp = list() } # list, to store all longProfile data
 
 # load and prepare (buffer, metering) profile
-pro = list( line = vect(para$pp), 
+lp[["pro"]] = list( line = vect(para$pp), 
             buffer = buffer(x = vect(para$pp), width = para$sr, capstyle = "flat", joinstyle = "round"), 
-            metering = mm_metering(profile_line = vect(para$pp), spacing = 1000, label = T, labelUnit = "km") ) # --------------------------------------------- optional: edit spacing [m]
+            labels = mm_metering(profile_line = vect(para$pp), spacing = 5000, label = T, labelUnit = "km") ) # --------------------------------------------- optional: edit spacing [m]
 
 # load clip resample rasters
-ras = mm_prepRas(profile=pro$line, para$sr, para$pr, para$ar, makeSlope = T, makeShade = T)
+lp[["ras"]] = mm_prepRas(para$pr, para$ar, lp$pro$buffer, makeSlope = T, makeShade = T)
 
+# stage objects for plotting
+pro = lp$pro; ras = lp$ras
 # test plot to see if data makes sense so far, using terra::plot or alternatively terra::plet
-plot(ras$hillshade, col=grey.colors(256,rev=T)); polys(pro$buffer, lty=3); lines(pro$line, lwd=1); points(pro$metering, cex=2, col="white"); text(pro$metering, labels=pro$metering$label, halo=T, cex=0.5); north(); sbar()
-plet(ras$hillshade, col=grey.colors(256,rev=T)) %>% lines(pro$line, lwd=2, col="black") %>% lines(pro$buffer, lwd=1, col="black") %>% points(pro$metering, cex=2, col="white")
-
+plot(ras$hillshade, col=grey.colors(256,rev=T)); polys(pro$buffer, lty=3); lines(pro$line, lwd=1); points(pro$labels, cex=2, col="white"); text(pro$labels, labels=pro$labels$label, halo=T, cex=0.5); north(); sbar()
+plet(ras$hillshade, col=grey.colors(256,rev=T)) %>% lines(pro$line, lwd=2, col="black") %>% lines(pro$buffer, lwd=1, col="black") %>% points(pro$labels, cex=2, col="white")
 
 # project rasters on to profile line
-st=Sys.time(); ras = mm_linRef(p = ras, l = pro$line, addz = T, asVector = F); et=Sys.time(); et-st; rm(list = c("et","st"))
+st=Sys.time(); lp$ras = mm_linRef(p = lp$ras, l = lp$pro$line, addz = T, asVector = F); et=Sys.time(); et-st; rm(list = c("et","st"))
 
 # load clip rasterize map(s)
-maps = list(); for (i in 1:length(para$pm)) { 
-  maps[[paste0("m",i)]] = mm_prepMap(map = para$pm[[i]], field = para$mf[[i]], cropper = pro$buffer, aligner = ras, asVector = F) }
+lp[["maps"]] = list(); for (i in 1:length(para$pm)) { 
+  lp$maps[[paste0("m",i)]] = mm_prepMap(map = para$pm[[i]], field = para$mf[[i]], cropper = lp$pro$buffer, aligner = lp$ras, asVector = F) }
+
+# load sample project lines
+lp[["lns"]] = list(); for (i in 1:length(para$pl)) { # load and sample
+  lp$lns[[paste0("l",i)]] = mm_sampleLines(l = para$pl[[i]], cropper = lp$pro$buffer, density = 0.1, raster = lp$ras[[1]]) }
+for (i in 1:length(lp$lns)) { lp$lns[[i]] = mm_linRef(p = lp$lns[[i]], l = lp$pro$line, addz = T, asVector = T) } # project sampled lines
+
+# load, add elevation and project points
+lp[["pts"]] = list(); for (i in 1:length(para$po)) { lp$pts[[paste0("p",i)]] = crop(vect(para$po[[i]]), lp$pro$buffer) } # load points (if multipart points create problems, add terra::disagg(), to convert to singlepart)
+for (i in 1:length(lp$pts)) { lp$pts[[i]][["rastValu"]] = extract(lp$ras[[1]], lp$pts[[i]], method = "bilinear")[,2] } # extract raster values
+for (i in 1:length(lp$pts)) { lp$pts[[i]] = if (length(lp$pts[[i]]) == 0) { NA } else { mm_linRef(p = lp$pts[[i]], l = lp$pro$line, addz = T, asVector = T) } } # project points
 
 
-# mm_f() is used to filter projected data and prepare it for use with old pmt pt.2 functions, and can also be used for prep for mm_map3d().
+
+#### 360 profile projection ####################################################
+if(!exists("p360")) { p360 = list() } # list, to store all 360 profile data
+
+# load and prepare (buffer, labels) profile
+crs = crs(rast(para$pr))
+p360$pro = list(line = mm_360lines(X = para$p360$X, Y = para$p360$Y, radius = para$p360$radius, count = para$p360$count, crs = crs),
+              buffer = mm_360buffer(X = para$p360$X, Y = para$p360$Y, radius = para$p360$radius, crs = crs),
+              labels = mm_360ids(X = para$p360$X, Y = para$p360$Y, radius = para$p360$radius, count = para$p360$count, crs = crs))
+
+# load clip resample rasters
+p360$ras = mm_prepRas(para$pr, para$ar, p360$pro$buffer, makeSlope = T, makeShade = T)
+
+
+# project rasters on to 360 profiles
+# convert to sf for parallel processing (SpatRaster and SpatVector cannot be exported to parallel workers! But sf can.)
+ras360_sf = terra::as.points(p360$ras) %>% sf::st_as_sf(); pro360_sf = st_as_sf(p360$pro$line)
+# ids = sub('^.','',as.character(seq(1001,(1000+length(p360$pro$line))))) # vector of ids for 360 profiles. Will be added in parallel output.
+
+# register parallel computing
+require(parallel)
+parallel::detectCores()
+numCores = 10
+require(doParallel)
+cl = parallel::makeCluster(numCores)
+doParallel::registerDoParallel(cl)
+# require(iterators); require(foreach) # are loaded with require(doParallel)
+
+# project 360 profiles, using parallel computing
+st=Sys.time(); vec360p = foreach (i = 1:48, .packages = c("terra","s2","MAMOTerrace", "sf"), .combine = 'list', .multicombine = T) %dopar% { 
+  x = s2::s2_project(pro360_sf[pro360_sf$id == i,], ras360_sf)
+  # z = s2::s2_distance(pro360_sf[pro360_sf$id == i,], ras360_sf) # Takes a little processing time. Terra is faster!
+  z = as.vector( terra::distance( vect(pro360_sf[pro360_sf$id == i,]), vect(ras360_sf) ) )
+  sf::st_as_sf( cbind(vect(ras360_sf), as.data.frame(x), as.data.frame(z)) )
+#  r = vect(ras360_sf); p = vect(pro360_sf[pro360_sf$id == i,])
+#  mm_linRef(p = r, l = p, addz = T, asVector = T) %>% st_as_sf()
+}; et=Sys.time(); et-st; rm(list = c("et","st"))
+p360$vec = vec360p; rm(list = c("ras360_sf", "pro360_sf", "vec360p"))
+
+# unregister parallel computing
+parallel::stopCluster(cl)
+foreach::registerDoSEQ()
+
+
+# load clip rasterize map(s)
+p360$maps = list(); for (i in 1:length(para$pm)) { 
+  p360$maps[[paste0("m",i)]] = mm_prepMap(map = para$pm[[i]], field = para$mf[[i]], cropper = p360$pro$buffer, aligner = p360$ras, asVector = F) }
+
+# load sample project lines
+p360_lns = list(); for (i in 1:length(para$pl)) { # load and sample
+  p360_lns[[paste0("l",i)]] = mm_sampleLines(l = para$pl[[i]], cropper = p360$pro$buffer, density = 0.1, raster = p360$ras[[1]]) }
+for (j in 1:length(p360$pro$line)) {
+  for (i in 1:length(p360_lns)) { p360$lns[[p360$pro$line$id_chr[j]]][[paste0("l",i)]] = mm_linRef(p = p360_lns[[i]], l = p360$pro$line[p360$pro$line$id == j], addz = T, asVector = T) } # project sampled lines
+}; rm('p360_lns')
+
+# load, add elevation and project points
+p360_pts = list(); for (i in 1:length(para$po)) { p360_pts[[paste0("p",i)]] = crop(vect(para$po[[i]]), p360$pro$buffer )} # load points (if multipart points create problems, add terra::disagg(), to convert to singlepart)
+for (i in 1:length(p360_pts)) { p360_pts[[i]][["rastValu"]] = extract(p360$ras[[1]], p360_pts[[i]], method = "bilinear")[,2] } # extract raster values
+for (j in 1:length(p360$pro$line)) {
+  for (i in 1:length(p360_pts)) { p360$pts[[p360$pro$line$id_chr[j]]][[paste0("p",i)]] = if (length(p360_pts[[i]]) == 0) { NA } else { mm_linRef(p = p360_pts[[i]], l = p360$pro$line[p360$pro$line$id == j], addz = T, asVector = T) } } # project points
+}; rm('p360_pts')
+
+
+
+#### staging single 360 profile or long profile for evaluation #################
+mm_stage = function (choose360) { # provide 360 id or nothing for longProfile
+  if (missing(choose360)) { # stage longProfile
+    pro <<- lp$pro; ras <<- lp$ras; maps <<- lp$maps; lns <<- lp$lns; pts <<- lp$pts
+  } else { # stage 360
+    pro$line <<- p360$pro$line[p360$pro$line$id == choose360]; pro$buffer <<- p360$pro$buffer; pro$labels <<- p360$pro$labels
+    ras <<- terra::rasterize(p360$vec[[choose360]], p360$ras, c(names(p360$ras),"x","z"))
+    maps <<- p360$maps
+    lns <<- p360$lns[[p360$pro$line$id_chr[choose360]]]
+    pts <<- p360$pts[[p360$pro$line$id_chr[choose360]]]
+  }
+}
+mm_stage(1)
+
+
+
+# mm_f() is used to filter projected data and prepare it for use with old pmt pt.2 functions, but can also be used for prep for mm_map3d(). It requires stds list.
 #?mm_f()
-# set standard values for mm_f() (also mm_bab())
+# set standard values for mm_f() (also mm_bab(), which is made to be used within mm_f())
 stds = list( # v, cr
   projectedRaster = "ras", # x
   yValue = names(ras)[1], # y
@@ -107,7 +190,7 @@ stds = list( # v, cr
 )
 
 
-# 3D plotting and terrace mapping
+# 3D plotting and terrace mapping ##############################################
 clear3d()
 d = mm_f(n=0); d = d[d$slope <= 90,] # convert raster to data.frame
 d = mm_f(n = 0, s = 2)
@@ -130,16 +213,6 @@ writeVector(map, "H:/TBA/ArcticDEM/Iceland/MAMU/mapout.gpkg", overwrite = T)
 ############################################################################ END
 
 
-# load sample project lines
-lns = list(); for (i in 1:length(para$pl)) { # load and sample
-  lns[[paste0("l",i)]] = mm_sampleLines(l = para$pl[[i]], cropper = pro$buffer, density = 0.1, raster = ras[[1]]) }
-for (i in 1:length(lns)) { lns[[i]] = mm_linRef(p = lns[[i]], l = pro$line, addz = T, asVector = T) } # project sampled lines
-
-
-# load, add elevation and project points
-pts = list(); for (i in 1:length(para$po)) { pts[[paste0("p",i)]] = vect(para$po[[i]]) } # load points (if multipart points create problems, add terra::disagg(), to convert to singlepart)
-for (i in 1:length(pts)) { pts[[i]][["rastValu"]] = extract(ras[[1]], pts[[i]], method = "bilinear")[,2] } # extract raster values
-for (i in 1:length(pts)) { pts[[i]] = mm_linRef(p = pts[[i]], l = pro$line, addz = T, asVector = T) } # project points
 
 
 # plot data with pmt3 pt.2
@@ -179,8 +252,6 @@ d = mm_f("01_NT"); d[d$slope <= 90,] %>% pmt.plot(col="#98c872", cex=20)
 mm_f(n=0) %>% pmt.plot(col="#00000033", cex=20)
 
 
-
-
 unique(maps$m1$NAME_KURZ)
 
 
@@ -196,19 +267,34 @@ points(lns$l1[[c("x","rastValu")]], pch = 46, col = "steelblue", cex = 2) # ice
 points(lns$l2[[c("x","rastValu")]], pch = 46, col = "blue", cex = 2) # rivers
 
 
-pts$p2
-locator()
 
-fullExtent = extent
-fullExtent
-extent
-extent$ylim = c(330,580)
-#extent$xlim = c(3000,83700)
+d = mm_f(n=0)
+d = d[d$z < 10,]
 
+max(d$x)
+min(d$x)
+max(d$alps_10m)
+min(d$alps_10m)
+d$slope
+d %>% pmt.plot(col="#00000011", cex=5)
+
+points(x=d$x,y=d$alps_10m, cex=0.5,pch = 16)
+
+para$pr
+names(ras)[1]
+stds$yValue
+stds$yValue = names(ras)[1]
+
+
+#### stage a profile, plot and evaluate it #####################################
+mm_stage(1)
+rap = as.points(ras); d = data.frame(rap$x, rap[[1]], rap$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rap); rm(d) # auto set plot extent for pmt3
+
+gr=F;px=T
 plot01 <- function(gr = T, px=T){
   pmt.empty(grid=gr,main="")
   if(px){
-  s=5
+  s=10
 #  d = mm_f("10a_Hoehenschotter"); d[d$slope <= 90,] %>% pmt.plot(col="#bbed26", cex=s)
   d = mm_f("10_Altplei_Plio"); d[d$slope <= 90,] %>% pmt.plot(col="#398017", cex=s)
 #  d = mm_f("06_HADS"); d[d$slope <= 90,] %>% pmt.plot(col="#ad3a01", cex=s)
@@ -224,23 +310,43 @@ plot01 <- function(gr = T, px=T){
   
 }
 
-# define export name
-proName = "Katzenbach_HT"
 
-# export plot and map
+#### export plot and map #######################################################
+# define export name
+proName = "Test"
+
+# currently staged profile
+rap = as.points(ras); d = data.frame(rap$x, rap[[1]], rap$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rap); rm(d) # auto set plot extent for pmt3
 png(paste0("notInPackage/output/",proName,".png"), width = 20/2.54, height = 14/2.54, res = 400, units = "in"); plot01(gr=F,px=T); dev.off(); dev.set(which = dev.prev())
 pdf(paste0("notInPackage/output/",proName,".pdf"), width = 10/2.54, height = 10/2.54); plot01(gr=T,px=F); dev.off(); dev.set(which = dev.prev())
 
+# 360 profiles, all of them
+for (i in 1:48) {
+  mm_stage(i)
+  if (i == 1) { rap = as.points(ras); d = data.frame(rap$x, rap[[1]], rap$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rap); rm(d) } # auto set plot extent for pmt3
+  png(paste0("notInPackage/output/",proName,"_",p360$pro$line$id_chr[i],".png"), width = 20/2.54, height = 14/2.54, res = 400, units = "in"); plot01(gr=F,px=T); dev.off(); dev.set(which = dev.prev())
+}
+
+# longProfile map
 png(paste0("notInPackage/output/",proName,"_map.png"), width = 27*2/2.54, height = 19*2/2.54, res = 400, units = "in")
-plot(ras$hillshade, col=grey.colors(256,rev=T)); polys(pro$buffer, lty=3); lines(pro$line, lwd=1); points(pro$metering, cex=2, col="white"); text(pro$metering, labels=pro$metering$label, halo=T, cex=0.5); north(); sbar()
+plot(ras$hillshade, col=grey.colors(256,rev=T)); polys(pro$buffer, lty=3); lines(pro$line, lwd=1, col = "#00000055"); points(pro$labels, cex=2, col="#ffffff44"); text(pro$labels, labels=pro$labels$label, halo=T, cex=0.7); north(); sbar()
 dev.off(); dev.set(which = dev.prev())
+
+# 360 profiles map
+png(paste0("notInPackage/output/",proName,"_360map.png"), width = 27*2/2.54, height = 19*2/2.54, res = 400, units = "in")
+plot(ras$hillshade, col=grey.colors(256,rev=T))
+lines(p360$pro$line, col = "#00000022"); polys(p360$pro$buffer); points(p360$pro$labels, cex=2, col = "white"); text(p360$pro$labels, labels=as.numeric(p360$pro$labels$id), halo=T, cex=1); north(); sbar()
+polys(lp$pro$buffer, lty=3); lines(lp$pro$line, lwd=1, col = "#00000055"); points(lp$pro$labels, cex=2, col="#ffffff44"); text(lp$pro$labels, labels=lp$pro$labels$label, halo=T, cex=0.7)
+dev.off(); dev.set(which = dev.prev())
+
 
 # Save data that you want to keep
 #save.image(file= paste0("notInPackage/output/",proName,"_workspace_5m.Rdata" ) )
 writeVector(pro$line,filename = paste0("notInPackage/output/",proName,"_profile.gpkg") )
 writeVector(pro$buffer,filename = paste0("notInPackage/output/",proName,"_swath.gpkg") )
-writeVector(pro$metering,filename = paste0("notInPackage/output/",proName,"_metering.gpkg") )
+writeVector(pro$labels,filename = paste0("notInPackage/output/",proName,"_labels.gpkg") )
 write.csv( t(as.data.frame(para)), file = paste0("notInPackage/output/",proName,"_para.csv" ) )
+
 
 
 
@@ -251,7 +357,7 @@ write.csv( t(as.data.frame(para)), file = paste0("notInPackage/output/",proName,
 stds$orographicSide = 3
 
 dem = mm_f(n=0); dem = dem[dem$slope <= 90,]
-y_upper_limit = 550
+y_upper_limit = 4000
 dem = dem[dem$y <= y_upper_limit,]
 
 clear3d()
@@ -470,7 +576,7 @@ lidar = rast("H:/GIS/DEMs/50m/alps_50m.tif")
 
 #m = plet(lidar, col = grey.colors(256, rev = T) )
 plet(ras$hillshade, col = grey.colors(256, rev = T) ) %>% lines(profile$line, lwd=2, col= "black") %>%
-lines(profile$buffer, lwd=1, col="black") %>% points(profile$metering, cex=2, col="white")
+lines(profile$buffer, lwd=1, col="black") %>% points(profile$labels, cex=2, col="white")
 
 
 
@@ -527,7 +633,7 @@ rgl::cur3d()
 m = plet(ras$hillshade, col = grey.colors(256, rev = T) )
 m = lines(m, profile$line, lwd=2, col= "black")
 m = lines(m, profile$buffer, lwd=1, col="black")
-points(m, profile$metering, cex=2, col="white")
+points(m, profile$labels, cex=2, col="white")
 
 
 

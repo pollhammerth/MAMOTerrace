@@ -3,25 +3,24 @@
 #' Requires terra package.
 #' Loads one or more rasters, that can be given as a vector or list of raster paths or spatRasters or mixed. The rasters are cropped and resampled to a desired analysis resolution and search radius around a given Profile. The profile can be given as path to, or spatVector.
 #' Output is a spatRast, with each imported raster as a layer.
-#' @param profile character (path to) or spatVector of a profile line.
-#' @param searchRadius Radius around the profile to create a buffer to clip rasters with.
 #' @param raster vector or list of character (path to) and or spatRaster. 
 #' @param analysisReso Resolution to which all rasters should be resampled.
+#' @param buffer SpatVector. Polygon, that raster should be cropped and masked to.
 #' @param makeSlope logical. Should a slope raster be added for the first provided raster?
 #' @param makeShade logical. Should a hillshade be added for the first provided raster?
 #' @return spatRaster
 #' @examples 
 #' ras = mm_prepRas(profile="profile.gpkg",searchRadius=3000,raster=c("data/lidar.tif","data/lidarFilled.tif"),analysisReso=100, makeSlope = T, makeShade = T);
 #' @export
-mm_prepRas = function (profile, searchRadius, raster, analysisReso, makeSlope = T, makeShade = T) {
+mm_prepRas = function (raster, analysisReso, buffer, makeSlope = T, makeShade = T) { # profile and searchRadius (args 1 and 2) are deleted, buffer added
   
-  # get profile line and calculate buffer
-  if (class(profile)=="character") { profile = terra::vect(profile) }
-  profile_buffer = terra::buffer(x = profile, width = searchRadius, capstyle = "flat", joinstyle = "round")
+#  # get profile line and calculate buffer
+#  if (class(profile)=="character") { profile = terra::vect(profile) }
+#  buffer = terra::buffer(x = profile, width = searchRadius, capstyle = "flat", joinstyle = "round")
 
   # get first raster and crop it to buffer
   ras = terra::rast(raster[1])
-  ras_crop = terra::crop(ras, profile_buffer, extend = T, mask = T)
+  ras_crop = terra::crop(ras, buffer, extend = T, mask = T)
   
   # calculate slope
   if (makeSlope) { slope = terra::terrain(x = ras_crop, v = "slope", unit = "degrees", neighbors=4) } # neighbours has only two options: 8 for rough surfaces, 4 for smoother surfaces
@@ -50,7 +49,7 @@ mm_prepRas = function (profile, searchRadius, raster, analysisReso, makeSlope = 
   if (length(raster)>1) { 
     for (i in 2:length(raster)) { 
       rasi = terra::rast(raster[i])
-      rasi_crop = terra::crop(rasi, profile_buffer, extend = T, mask = T)
+      rasi_crop = terra::crop(rasi, buffer, extend = T, mask = T)
       rasi_crop_resam = terra::resample(rasi_crop, alignRaster, method="cubic", threads=TRUE)
       dem = terra::rast(list(dem,rasi_crop_resam))
     } 
