@@ -4,7 +4,10 @@ rm(list=ls())
 #### load old pmt3 functions ###################################################
 #install.packages("sm")
 require(readtext)
-pmtPath = "H:/R_Package_Devel/prePackageVersion"
+
+pmtPath = "/Users/tpol/PMT3/R_Package_Devel/prePackageVersion" # OSX
+#pmtPath = "H:/R_Package_Devel/prePackageVersion" # WIN
+
 # get FLAGG specific styles and filter expressions:
 eval(parse(text = readtext(paste0(pmtPath,"/","FLAGGStyles/FLAGGSpecific.R"),verbosity = 0)[[2]]))
 temp<-readtext(paste0(pmtPath,"/","filterExpressions/*.R"), verbosity = 0);for (i in 1:length(temp[,2])){eval(parse(text=temp[i,2]))};rm(temp)
@@ -20,8 +23,8 @@ load(paste0(input.path,"/","dsIds.Rdata"));load(paste0(input.path,"/","htIds.Rda
 ################################################################################
 
 
-setwd("H:/TEMP/MAMOT")
-setwd("H:/R_Package_Devel/MAMOTerrace")
+setwd("/Users/tpol/PMT3/R_Package_Devel/MAMOTerrace") # OSX
+#setwd("H:/R_Package_Devel/MAMOTerrace") # WIN
 
 # install MAMOTerrace
 library(roxygen2)
@@ -39,11 +42,10 @@ require("rgl")
 
 require("raster") # for mm_sampleLines() methods::as("SpatVector", "Spatial")
 
-rm(para)
-para$p360
+
 # NAF set parameters for data preparation and projection #######################
 para = list(
-  ar = 40,                                                                                                        # ar = Analysis resolution
+  ar = 50,                                                                                                        # ar = Analysis resolution
   sr = 8000,                                                                                                      # sr = Search radius (radius of buffer around profile line)
   pp = "notInPackage/helperline.gpkg",                                               # pp = path to profile line
   pr = NA,                                                                                                        # pr = path to one or more rasters
@@ -63,6 +65,7 @@ if ( para$ar <  10 | para$ar == 15         ) { lidar = c("H:/GIS/DEMs/5m/alps_5m
      para$ar >= 50                         ) { lidar = c("H:/GIS/DEMs/50m/alps_50m.tif") }
 if ( is.na(para$pr) ) { para$pr = lidar } else { para$pr = c(lidar, para$pr) }; rm(lidar)
 
+para$pr = "/Users/tpol/PMT3/GIS/DEMs/alps_50m.tif"; para$pm$m1 = "/Users/tpol/PMT3/GIS/maps/terraces.gpkg"; para$pl$l1 = "/Users/tpol/PMT3/GIS/maps/iceextent.gpkg" # OSX
 
 
 #### long-profile projection ###################################################
