@@ -39,19 +39,22 @@ require("rgl")
 
 require("raster") # for mm_sampleLines() methods::as("SpatVector", "Spatial")
 
-
-
+rm(para)
+para$p360
 # NAF set parameters for data preparation and projection #######################
 para = list(
-  ar = 20,                                                                                                        # ar = Analysis resolution
-  sr = 5000,                                                                                                      # sr = Search radius (radius of buffer around profile line)
+  ar = 40,                                                                                                        # ar = Analysis resolution
+  sr = 8000,                                                                                                      # sr = Search radius (radius of buffer around profile line)
   pp = "notInPackage/helperline.gpkg",                                               # pp = path to profile line
   pr = NA,                                                                                                        # pr = path to one or more rasters
   pm = list(m1 = "H:/GIS/PhD/maps/flagg/terraces.gpkg", m2 = "H:/GIS/Coops/Ewelina/maps/mapV3/terraces_CH25_BW50_noLake_inclSchrotz.gpkg", m3 = "notInPackage/helperolygon.gpkg"),# m3 = "notInPackage/Qmap.gpkg"), # pm = path(s) to map(s)
   mf = list(m1 = "NAME_KURZ", m2 = "Strat"),# m3 = "names"),                                             # mf = field for each map
   pl = list(l1 = "H:/GIS/PhD/maps/flagg/Ice/MaxIceExtent.gpkg", l2 = "H:/GIS/PhD/maps/hydro/rivers_OPAL.gpkg"),   # pl = path(s) to line(s)
   po = list(p1 = "H:/GIS/PhD/maps/literatureFigs/haeuselmann2007/Haeuselmann2007_locations.gpkg", p2 = "notInPackage/helperoint.gpkg"),                 # po = path(s) to point(s)
-  p360 = list(X = 768227, Y = 5349368, radius = 7000, count = 48)
+  p360 = list(X = if(exists("para")){para$p360$X}else{780707}, 
+              Y = if(exists("para")){para$p360$Y}else{5409520}, 
+              radius = 13000, 
+              count = 48)
 )
 # choose alpine lidar path suiting analysis resolution (ar) and add it in front of raster paths in para$pr (comment out, if you want to specify lidar in para$pr[1])
 if ( para$ar <  10 | para$ar == 15         ) { lidar = c("H:/GIS/DEMs/5m/alps_5m.tif")   } else if (
@@ -63,6 +66,7 @@ if ( is.na(para$pr) ) { para$pr = lidar } else { para$pr = c(lidar, para$pr) }; 
 
 
 #### long-profile projection ###################################################
+#rm(lp)
 if(!exists("lp")) { lp = list() } # list, to store all longProfile data
 
 # load and prepare (buffer, metering) profile
@@ -99,6 +103,7 @@ for (i in 1:length(lp$pts)) { lp$pts[[i]] = if (length(lp$pts[[i]]) == 0) { NA }
 
 
 #### 360 profile projection ####################################################
+#rm(p360)
 if(!exists("p360")) { p360 = list() } # list, to store all 360 profile data
 
 # load and prepare (buffer, labels) profile
@@ -119,7 +124,7 @@ ras360_sf = terra::as.points(p360$ras) %>% sf::st_as_sf(); pro360_sf = st_as_sf(
 # register parallel computing
 require(parallel)
 parallel::detectCores()
-numCores = 10
+numCores = 14
 require(doParallel)
 cl = parallel::makeCluster(numCores)
 doParallel::registerDoParallel(cl)
@@ -163,6 +168,7 @@ for (j in 1:length(p360$pro$line)) {
 
 #### staging single 360 profile or long profile for evaluation #################
 mm_stage = function (choose360) { # provide 360 id or nothing for longProfile
+  pro <<- list(); ras <<- list(); maps <<- list(); lns <<- list(); pts <<- list()
   if (missing(choose360)) { # stage longProfile
     pro <<- lp$pro; ras <<- lp$ras; maps <<- lp$maps; lns <<- lp$lns; pts <<- lp$pts
   } else { # stage 360
@@ -212,34 +218,21 @@ writeVector(map, "H:/TBA/ArcticDEM/Iceland/MAMU/mapout.gpkg", overwrite = T)
 
 ############################################################################ END
 
-
-
-
 # plot data with pmt3 pt.2
 # example using pmt functions with mm_f()
 dev.new()
 dev.cur()
 dev.set(which = dev.prev())
 
-rap = as.points(ras); d = data.frame(rap$x, rap[[1]], rap$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rap); rm(d) # auto set plot extent for pmt3
-pmt.empty(grid=T,main="")
-
-d = mm_f("01_NT"); d[d$slope <= 2,] %>% pmt.plot(col="#98c872", cex=20)
-d = mm_f("02_HT"); d[d$slope <= 90,] %>% pmt.plot(col="#5b8cbb", cex=20)
-d = mm_f("03c_TDS_Mindel_Guenz_1800_780_ka"); d[d$slope <= 90,] %>% pmt.plot(col="#907a58", cex=20)
-d = mm_f("06a_HDS_Donau_Biber_1800_780_ka"); d[d$slope <= 90,] %>% pmt.plot(col="#dd4243", cex=20)
-
+# 25k map CH
 d = mm_f("NT"); d[d$slope <= 2,] %>% pmt.plot(col="#98c872", cex=20)
 d = mm_f("HT"); d[d$slope <= 90,] %>% pmt.plot(col="#5b8cbb", cex=20)
 d = mm_f("TDS"); d[d$slope <= 90,] %>% pmt.plot(col="#907a58", cex=20)
 d = mm_f("HDS"); d[d$slope <= 90,] %>% pmt.plot(col="#dd4243", cex=20)
 
-
-d = mm_f("3 IP1"); d[d$slope <= 90,] %>% pmt.plot(col="#78cab7", cex=20)
-d = mm_f("T2"); d[d$slope <= 90,] %>% pmt.plot(col="#e76787", cex=20)
-d = mm_f("T1"); d[d$slope <= 90,] %>% pmt.plot(col="#bbed26", cex=20)
-
-
+# 50 - 200k compiled map NAF
+d = mm_f("03c_TDS_Mindel_Guenz_1800_780_ka"); d[d$slope <= 90,] %>% pmt.plot(col="#907a58", cex=20)
+d = mm_f("06a_HDS_Donau_Biber_1800_780_ka"); d[d$slope <= 90,] %>% pmt.plot(col="#dd4243", cex=20)
 d = mm_f("10a_Hoehenschotter"); d[d$slope <= 90,] %>% pmt.plot(col="#bbed26", cex=20)
 d = mm_f("10_Altplei_Plio"); d[d$slope <= 90,] %>% pmt.plot(col="#398017", cex=20)
 d = mm_f("06_HADS"); d[d$slope <= 90,] %>% pmt.plot(col="#ad3a01", cex=20)
@@ -248,53 +241,26 @@ d = mm_f("03_JDS"); d[d$slope <= 90,] %>% pmt.plot(col="#ffaf01", cex=20)
 d = mm_f("02_HT"); d[d$slope <= 90,] %>% pmt.plot(col="#5b8cbb", cex=20)
 d = mm_f("01_NT"); d[d$slope <= 90,] %>% pmt.plot(col="#98c872", cex=20)
 
-
+# full DEM
 mm_f(n=0) %>% pmt.plot(col="#00000033", cex=20)
 
-
-unique(maps$m1$NAME_KURZ)
-
-
+# modelling
 d = mm_f("01_NT"); d = d[d$slope <= 2,]
 b = pmt.bin(d, interval = 200, value = "median", mode = "bin", cth = NA, sth = NA)
 m = pmt.model( b, deg = 1)
 pmt.plotModel(m, col = "blue",conf=F)
 
-points(pts$p2[[c("x","SAMPLE_1")]], pch=21, bg = "yellow", col = "blue", lwd = 2, cex = 2) # outcrops
-points(as.numeric(pts$p2$x),as.numeric(pts$p2$elevation), pch=21, bg = "yellow", col = "blue", lwd = 2, cex = 2) # outcrops
-
-points(lns$l1[[c("x","rastValu")]], pch = 46, col = "steelblue", cex = 2) # ice
-points(lns$l2[[c("x","rastValu")]], pch = 46, col = "blue", cex = 2) # rivers
-
-
-
-d = mm_f(n=0)
-d = d[d$z < 10,]
-
-max(d$x)
-min(d$x)
-max(d$alps_10m)
-min(d$alps_10m)
-d$slope
-d %>% pmt.plot(col="#00000011", cex=5)
-
-points(x=d$x,y=d$alps_10m, cex=0.5,pch = 16)
-
-para$pr
-names(ras)[1]
-stds$yValue
-stds$yValue = names(ras)[1]
-
 
 #### stage a profile, plot and evaluate it #####################################
-mm_stage(1)
+mm_stage()
 rap = as.points(ras); d = data.frame(rap$x, rap[[1]], rap$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rap); rm(d) # auto set plot extent for pmt3
 
 gr=F;px=T
+
 plot01 <- function(gr = T, px=T){
   pmt.empty(grid=gr,main="")
   if(px){
-  s=10
+    s=40
 #  d = mm_f("10a_Hoehenschotter"); d[d$slope <= 90,] %>% pmt.plot(col="#bbed26", cex=s)
   d = mm_f("10_Altplei_Plio"); d[d$slope <= 90,] %>% pmt.plot(col="#398017", cex=s)
 #  d = mm_f("06_HADS"); d[d$slope <= 90,] %>% pmt.plot(col="#ad3a01", cex=s)
@@ -304,36 +270,78 @@ plot01 <- function(gr = T, px=T){
   d = mm_f("01_NT"); d[d$slope <= 90,] %>% pmt.plot(col="#98c872", cex=s)
   
 #  points(pts$p1[[c("x","elev")]], pch=21, bg = "yellow", col = "black", lwd = 2, cex = 2) # outcrops
-
-  mm_f(n=0) %>% pmt.plot(col="#00000011", cex=5)
+  
+  points(lns$l1$x,lns$l1$rastValu,type="p",col = "#99f1ff66", cex = s/100, pch = 16) # ice extent
+  
+  polys(b, col = "#99112288", border = NA)
+  
+  mm_f(n=0) %>% pmt.plot(col="#00000011", cex=s/2)
+  
   }  
   
 }
 
 
+
+#### 2D mapping
+l = pmt.drawLine()
+#l <- data.frame(x = c(5035,5808,6796,8306,9520,10983,11911,12779,13445,14825,16181,17359,18680,19833,21023,21915,23295,24877,26269,27958,29957,30968,32645,33978,35441,36405,38415,39783,41377), y = c(514,508,500,488,479,469,462,457,453,448,442,437,432,427,424,422,419,414,412,408,404,403,402,400,399,398,397,397,396))
+#l <- data.frame(x = c(4845,5713,7521,8949,10483,11792,13219,15170,16919,18346,20000,21356,23390,25080,26091,27685,29445,31016,33062,34537,36131,38546,39700,40937,41389), y = c(516,509,495,483,472,462,454,446,439,433,426,421,415,410,408,406,405,403,401,400,398,397,397,396,395))
+l <- data.frame(x = c(5059,6522,8651,10507,12339,13636,15265,17050,18537,20012,21297,22403,23652,25270,26674,28422,30147,32110,33490,35167,36345,38106,39521,40794,41389), y = c(514,503,485,472,458,453,446,438,433,426,421,416,412,408,406,405,404,402,400,399,398,396,396,396,395))
+b = buffer(mm_lv(l), width=2, capstyle = "flat", joinstyle = "round")
+
+d = mm_f(n=0)
+s = mm_d2s(d)
+s = crop(s,b)
+s = mm_s2d(s)
+
+pmt.empty(grid=F); d %>% pmt.plot(col="#00000033", cex=20)
+s[s$slope <= 0.2,] %>% pmt.plot(col="red", cex=20, add = T)
+
+clear3d()
+exagg = 30
+sf = s[s$slope <= 0.2,]
+points3d(sf$X,sf$Y,sf$y*exagg, size = 10, col = "#000000")
+rgl::grid3d(side = c("x","y","z"))
+rgl::axes3d()
+
+p = mm_pm(mm_d2s(s[s$slope <= 90,]))
+
+png(paste0("notInPackage/output/",proName,"_mapping_01.png"), width = 27*2/2.54, height = 19*2/2.54, res = 400, units = "in")
+plot(ras$hillshade, col=grey.colors(256,rev=T))
+polys(p, col = "#99112266", border = NA)
+polys(lp$pro$buffer, lty=3); lines(lp$pro$line, lwd=1); points(lp$pro$labels, cex=2, col="white"); text(lp$pro$labels, labels=pro$labels$label, halo=T, cex=0.5); north(); sbar()
+dev.off(); dev.set(which = dev.prev())
+
+
+
+
 #### export plot and map #######################################################
 # define export name
-proName = "Test"
+proName = "Inn_NT_Long_Section_1_optimized_mapping_01_pro"
 
 # currently staged profile
 rap = as.points(ras); d = data.frame(rap$x, rap[[1]], rap$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rap); rm(d) # auto set plot extent for pmt3
-png(paste0("notInPackage/output/",proName,".png"), width = 20/2.54, height = 14/2.54, res = 400, units = "in"); plot01(gr=F,px=T); dev.off(); dev.set(which = dev.prev())
+png(paste0("notInPackage/output/",proName,".png"), width = 20*2/2.54, height = 14*2/2.54, res = 400, units = "in"); plot01(gr=F,px=T); dev.off(); dev.set(which = dev.prev())
 pdf(paste0("notInPackage/output/",proName,".pdf"), width = 10/2.54, height = 10/2.54); plot01(gr=T,px=F); dev.off(); dev.set(which = dev.prev())
-
-# 360 profiles, all of them
-for (i in 1:48) {
-  mm_stage(i)
-  if (i == 1) { rap = as.points(ras); d = data.frame(rap$x, rap[[1]], rap$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rap); rm(d) } # auto set plot extent for pmt3
-  png(paste0("notInPackage/output/",proName,"_",p360$pro$line$id_chr[i],".png"), width = 20/2.54, height = 14/2.54, res = 400, units = "in"); plot01(gr=F,px=T); dev.off(); dev.set(which = dev.prev())
-}
 
 # longProfile map
 png(paste0("notInPackage/output/",proName,"_map.png"), width = 27*2/2.54, height = 19*2/2.54, res = 400, units = "in")
-plot(ras$hillshade, col=grey.colors(256,rev=T)); polys(pro$buffer, lty=3); lines(pro$line, lwd=1, col = "#00000055"); points(pro$labels, cex=2, col="#ffffff44"); text(pro$labels, labels=pro$labels$label, halo=T, cex=0.7); north(); sbar()
+plot(ras$hillshade, col=grey.colors(256,rev=T))
+polys(pro$buffer, lty=3); lines(pro$line, lwd=1, col = "#00000055"); points(pro$labels, cex=2, col="#ffffff44"); text(pro$labels, labels=pro$labels$label, halo=T, cex=0.7); north(); sbar()
 dev.off(); dev.set(which = dev.prev())
 
+# 360 profiles, all of them
+if ( !dir.exists(paste0("notInPackage/output/",proName,"_360")) ) {
+dir.create(paste0("notInPackage/output/",proName,"_360")) }
+rap = as.points(ras); d = data.frame(rap$x, rap[[1]], rap$z); names(d) = c("x","y","z"); extent = pmt.extent(d); rm(rap); rm(d) # auto set plot extent for pmt3
+for (i in seq(1,48,by=1)) {
+  mm_stage(i)
+  png(paste0("notInPackage/output/",proName,"_360/",p360$pro$line$id_chr[i],".png"), width = 20/2.54, height = 14/2.54, res = 400, units = "in"); plot01(gr=F,px=T); dev.off(); dev.set(which = dev.prev())
+}
+
 # 360 profiles map
-png(paste0("notInPackage/output/",proName,"_360map.png"), width = 27*2/2.54, height = 19*2/2.54, res = 400, units = "in")
+png(paste0("notInPackage/output/",proName,"_360/_map360.png"), width = 27*2/2.54, height = 19*2/2.54, res = 400, units = "in")
 plot(ras$hillshade, col=grey.colors(256,rev=T))
 lines(p360$pro$line, col = "#00000022"); polys(p360$pro$buffer); points(p360$pro$labels, cex=2, col = "white"); text(p360$pro$labels, labels=as.numeric(p360$pro$labels$id), halo=T, cex=1); north(); sbar()
 polys(lp$pro$buffer, lty=3); lines(lp$pro$line, lwd=1, col = "#00000055"); points(lp$pro$labels, cex=2, col="#ffffff44"); text(lp$pro$labels, labels=lp$pro$labels$label, halo=T, cex=0.7)
@@ -349,6 +357,33 @@ write.csv( t(as.data.frame(para)), file = paste0("notInPackage/output/",proName,
 
 
 
+# some project specific map plot adds
+# terrace map
+m = terra::as.polygons(maps$m1)
+polys(m[m$NAME_KURZ == "01_NT"], col = "#98c87288", border = NA)
+polys(m[m$NAME_KURZ == "02_HT"], col = "#5b8cbb88", border = NA)
+polys(m[m$NAME_KURZ == "03_JDS"], col = "#ffaf0188", border = NA)
+polys(m[m$NAME_KURZ == "05_TADS"], col = "#ff010188", border = NA)
+polys(m[m$NAME_KURZ %in% c("10_Altplei_Plio","06b_Altplei_Reu_Schn_Aich_Federn_Geier_u_m","11_Aeltere_TerrScho_Plio")], col = "#39801788", border = NA)
+# LGM and penultimate glaciation ice extent
+lines(l[l$name == unique(l$name)[4]], col = "#99f1ff66", lwd = 3); lines(l[l$name == unique(l$name)[5]], col = "#4ba8ff66", lwd = 3, lty = 2)
+
+
+mm_loc360 = function() {
+  para_OLD <<- para
+  loc = locator()  
+  para$p360$X <<- loc$x
+  para$p360$Y <<- loc$y
+}
+
+mm_stage()
+mm_loc360()
+
+# write 360 orientations (either append to existing shapefile or if not existing, write new)
+id = 8
+if ( file.exists("notInPackage/output/_360orientations.gpkg") ) { writeVector( rbind( vect("notInPackage/output/_360orientations.gpkg"), p360$pro$line[p360$pro$line$id == id] ), filename = "notInPackage/output/_360orientations.gpkg", overwrite = T ) 
+  } else { writeVector(p360$pro$line[p360$pro$line$id == id], filename = "notInPackage/output/_360orientations.gpkg" ) }
+
 
 
 ######## DEVEL #################################################################
@@ -362,7 +397,7 @@ dem = dem[dem$y <= y_upper_limit,]
 
 clear3d()
 
-exagg = 30
+exagg = 100
 
 points3d(dem$X,dem$Y,dem$y*exagg, size = 0.01, col = "#000000")
 
@@ -370,7 +405,9 @@ d = mm_f("01_NT"); d = d[d$slope <= 1,]; d = d[d$y <=y_upper_limit,]; points3d(d
 d = mm_f("02_HT"); d = d[d$slope <= 1,]; d = d[d$y <=y_upper_limit,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#5b8cbb")
 d = mm_f("03_JDS"); d = d[d$slope <= 90,]; d = d[d$y <=y_upper_limit,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#ffaf01")
 d = mm_f("05_TADS"); d = d[d$slope <= 90,]; d = d[d$y <=y_upper_limit,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#ff0101")
+#d = mm_f("05_TADS"); d = d[d$slope <= 90,]; d = d[d$y <=y_upper_limit,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#ff0101")
 d = mm_f("10_Altplei_Plio"); d = d[d$slope <= 90,]; d = d[d$y <=y_upper_limit,]; points3d(d$X,d$Y,d$y*exagg, size = 2, col = "#398017")
+
 
 rgl::grid3d(side = c("x","y","z"))
 rgl::axes3d()
