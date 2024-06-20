@@ -4,10 +4,8 @@ rm(list=ls())
 #### load old pmt3 functions ###################################################
 #install.packages("sm")
 require(readtext)
-
-pmtPath = "/Users/tpol/PMT3/R_Package_Devel/prePackageVersion" # OSX
-#pmtPath = "H:/R_Package_Devel/prePackageVersion" # WIN
-
+#pmtPath = "/Users/tpol/PMT3/R_Package_Devel/prePackageVersion" # OSX
+pmtPath = "H:/R_Package_Devel/prePackageVersion" # WIN
 # get FLAGG specific styles and filter expressions:
 eval(parse(text = readtext(paste0(pmtPath,"/","FLAGGStyles/FLAGGSpecific.R"),verbosity = 0)[[2]]))
 temp<-readtext(paste0(pmtPath,"/","filterExpressions/*.R"), verbosity = 0);for (i in 1:length(temp[,2])){eval(parse(text=temp[i,2]))};rm(temp)
@@ -23,8 +21,8 @@ load(paste0(input.path,"/","dsIds.Rdata"));load(paste0(input.path,"/","htIds.Rda
 ################################################################################
 
 
-setwd("/Users/tpol/PMT3/R_Package_Devel/MAMOTerrace") # OSX
-#setwd("H:/R_Package_Devel/MAMOTerrace") # WIN
+#setwd("/Users/tpol/PMT3/R_Package_Devel/MAMOTerrace") # OSX
+setwd("H:/R_Package_Devel/MAMOTerrace") # WIN
 
 # install MAMOTerrace
 library(roxygen2)

@@ -3,7 +3,7 @@
 getwd()
 setwd("H:/R_Package_Devel/MAMOTerrace")
 
-#### MAMOT
+# MAMOT
 # install from local repo
 library(roxygen2)
 roxygenise()
